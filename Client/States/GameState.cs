@@ -16,7 +16,10 @@ namespace Client.States
 {
     public class GameState : State
     {
-        PlayerEntity player;
+        Guid localPlayerGuid = Guid.Empty;
+        Guid localPlayerToken = Guid.Empty;
+        PlayerEntity localPlayer;
+        Dictionary<Guid, PlayerEntity> players;
         UdpClient client;
         IPEndPoint server;
         long serverTimestampOffset = 0;
@@ -181,13 +184,43 @@ namespace Client.States
             }
 
             float x = 0, y = 0;
-            joinResponsePacket.Read(ref x).Read(ref y);
+            int joinPlayerCount = -1;
+            joinResponsePacket.Read(ref localPlayerGuid).Read(ref localPlayerToken).Read(ref x).Read(ref y).Read(ref joinPlayerCount);
+
+            players = new Dictionary<Guid, PlayerEntity>();
+
+            for(int i = 0; i < joinPlayerCount; i++)
+            {
+                Guid entityGuid = Guid.Empty;
+                string entityName = string.Empty;
+                int entityHue = -1, entityNametagHue = -1;
+                float entityPosX = 400, entityPosY = 400, entityRotation = 0;
+                joinResponsePacket.Read(ref entityGuid).Read(ref entityName).Read(ref entityHue).Read(ref entityNametagHue).Read(ref entityPosX).Read(ref entityPosY).Read(ref entityRotation);
+
+                players.Add(entityGuid, new PlayerEntity(entityName, new Vector2f(entityPosX, entityPosY), entityHue, entityNametagHue));
+                players[entityGuid].UpdateRotation(entityRotation);
+            }
+
             Console.WriteLine($"Received join response packet (accepted: {didServerAcceptJoin}) with ID {joinResponsePacketID} of size {joinResponsePacket.GetSize()} from {joinResponseEndpoint.Address}:{joinResponseEndpoint.Port}");
-            Console.WriteLine($"Position: (x: {x}|y: {y})");
+            Console.WriteLine($"Guid: {localPlayerGuid}, token: {localPlayerToken}, Position: (x: {x}|y: {y}), Initialized {players.Count} preexisting PlayerEntities");
             #endregion
 
             // Initialize PlayerEntity locally
-            player = new PlayerEntity(Config.data.name, new Vector2f(x, y), Config.data.playerHue, Config.data.nametagHue);
+            localPlayer = new PlayerEntity(Config.data.name, new Vector2f(x, y), Config.data.playerHue, Config.data.nametagHue);
+
+            #region Eventhandling
+            game.window.Closed += OnWindowClosed;
+            #endregion
+        }
+
+        private void OnWindowClosed(object sender, EventArgs e)
+        {
+            Packet leavePacket = new Packet();
+            leavePacket.Append((short)Server.PacketID.Player_Leave).Append(localPlayerGuid).Append(localPlayerToken);
+            client.Send(leavePacket.GetData(), leavePacket.GetSize());
+
+            game.window.Close();
+            return;
         }
 
         public override bool IsOpaque
@@ -202,12 +235,17 @@ namespace Client.States
         {
             game.window.Clear(new Color(50, 200, 65));
 
-            game.window.Draw(player);
+            foreach(PlayerEntity player in players.Values)
+            {
+                game.window.Draw(player);
+            }
+
+            game.window.Draw(localPlayer);
         }
 
         public override void HandleInput(float deltaTime)
         {
-            if (game.window.HasFocus() && game.cd == 0)
+            if (game.window.HasFocus())
             {
                 if(Keyboard.IsKeyPressed(Keyboard.Key.Escape))
                 {
@@ -239,22 +277,117 @@ namespace Client.States
                     moveVector /= length;
                 }
                 moveVector *= deltaTime;
-                player.Move(moveVector);
+
+                if (moveVector.X != 0 || moveVector.Y != 0)
+                {
+                    Packet movePacket = new Packet();
+                    movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
+                    client.Send(movePacket.GetData(), movePacket.GetSize());
+                    //Console.WriteLine($"Sent player move packet with ID {(short)Server.PacketID.Player_Rotate} of size {movePacket.GetSize()} to {server.Address}:{server.Port}");
+                }
+                //localPlayer.Move(moveVector);
+
+                float oldRotation = playerRotation;
+                Vector2f mousePos = new Vector2f(Mouse.GetPosition(game.window).X, Mouse.GetPosition(game.window).Y);
+                playerRotation = (float)Math.Atan2(mousePos.Y - localPlayer.Position.Y, mousePos.X - localPlayer.Position.X) / (float)Math.PI * 180.0f + 180.0f;
+
+                if (playerRotation != oldRotation)
+                {
+                    Packet rotatePacket = new Packet();
+                    rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
+                    client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
+                    //Console.WriteLine($"Sent player rotate packet with ID {(short)Server.PacketID.Player_Rotate} of size {rotatePacket.GetSize()} to {server.Address}:{server.Port}");
+                }
             }
-
-            Vector2f mousePos = new Vector2f(Mouse.GetPosition(game.window).X, Mouse.GetPosition(game.window).Y);
-            playerRotation = (float)Math.Atan2(mousePos.Y - player.Position.Y, mousePos.X - player.Position.X) / (float)Math.PI * 180.0f + 180.0f;
-
         }
 
         public override void Update(float deltaTime)
         {
-            Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
+            HandlePackets();
 
-            player.UpdateRotation(playerRotation);
-            player.UpdatePosition(player.Position);
+            //Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
+
+            //localPlayer.UpdateRotation(playerRotation);
+            //localPlayer.UpdatePosition(localPlayer.Position);
         }
 
+        private void HandlePackets()
+        {
+            if (client.Available > 0)
+            {
+                //Console.Write('\r');
+
+                IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+                byte[] rawPacket = client.Receive(ref endpoint);
+                Packet receivedPacket = new Packet(rawPacket);
+
+                short packetID = (short)Server.PacketID.Invalid;
+                receivedPacket.Read(ref packetID).ResetReadPos();
+
+                // Immediate packet handling
+                switch (packetID)
+                {
+                    // Unhandled packet
+                    default:
+                        Console.WriteLine($"Received unhandled packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                        break;
+                    // Player join notification packet
+                    case (short)Server.PacketID.Player_Join_Notification:
+                        Guid joinedPlayerGuid = Guid.Empty;
+                        string joinedPlayerName = string.Empty;
+                        int joinedPlayerHue = 0, joinedPlayerNametagHue = 0;
+                        float joinedPlayerPosX = 0, joinedPlayerPosY = 0;
+                        receivedPacket.Read(ref packetID).Read(ref joinedPlayerGuid).Read(ref joinedPlayerName).Read(ref joinedPlayerHue).Read(ref joinedPlayerNametagHue).Read(ref joinedPlayerPosX).Read(ref joinedPlayerPosY);
+
+                        players.Add(joinedPlayerGuid, new PlayerEntity(joinedPlayerName, new Vector2f(joinedPlayerPosX, joinedPlayerPosY), joinedPlayerHue, joinedPlayerNametagHue));
+                        break;
+                    // Player leave notification packet
+                    case (short)Server.PacketID.Player_Leave_Notification:
+                        Guid leavingPlayerGuid = Guid.Empty;
+
+                        receivedPacket.Read(ref packetID).Read(ref leavingPlayerGuid);
+
+                        if(leavingPlayerGuid == localPlayerGuid)
+                        {
+                            game.window.Close();
+                        }
+
+                        if(players.ContainsKey(leavingPlayerGuid))
+                        {
+                            players.Remove(leavingPlayerGuid);
+                        }
+                        break;
+                    // Status packet
+                    case (short)Server.PacketID.Status:
+                        int playerCount = -1;
+                        //Console.WriteLine($"Received status packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                        receivedPacket.Read(ref packetID).Read(ref playerCount);
+
+                        for(int i = 0; i < playerCount; i++)
+                        {
+                            Guid entityGuid = Guid.Empty;
+                            float entityPosX = 0, entityPosY = 0, entityRotation = 0;
+                            receivedPacket.Read(ref entityGuid).Read(ref entityPosX).Read(ref entityPosY).Read(ref entityRotation);
+
+                            if(entityGuid == localPlayerGuid)
+                            {
+                                localPlayer.UpdatePosition(new Vector2f(entityPosX, entityPosY));
+                                localPlayer.UpdateRotation(entityRotation);
+                            } else
+                            {
+                                if(players.ContainsKey(entityGuid))
+                                {
+                                    players[entityGuid].UpdatePosition(new Vector2f(entityPosX, entityPosY));
+                                    players[entityGuid].UpdateRotation(entityRotation);
+                                }
+                            }
+                        }
+
+                        break;
+                }
+            }
+        }
+        
         private (int ping, int timestampOffset) GetPing()
         {
             if(!client.Client.Connected)
@@ -271,9 +404,9 @@ namespace Client.States
             Packet pingPacket = new Packet();
             pingPacket.Append((short)Server.PacketID.Ping);
 
-            pingTimer.Start();
             client.Send(pingPacket.GetData(), pingPacket.GetSize());
             Console.WriteLine($"Sent ping packet with ID {(short)Server.PacketID.Ping} of size {pingPacket.GetSize()} to {server.Address}:{server.Port}");
+            pingTimer.Restart();
             do
             {
                 endpointOfPingResponse = new IPEndPoint(IPAddress.Any, 0);
@@ -288,11 +421,9 @@ namespace Client.States
 
             } while (!endpointOfPingResponse.Address.Equals(server.Address) || endpointOfPingResponse.Port != server.Port);
 
-
-
-            int ping = (int)pingTimer.ElapsedMilliseconds;
             pingTimer.Stop();
-
+            int ping = (int)pingTimer.ElapsedMilliseconds;
+            
             // Receive ping response packet
             Packet pingResponsePacket = new Packet(rawPingResponsePacket);
             short pingResponsePacketID = -1;

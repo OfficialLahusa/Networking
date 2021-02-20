@@ -74,6 +74,27 @@ namespace LahusaPackets
             return this;
         }
 
+        public Packet Append(Guid data)
+        {
+            Append(data.ToByteArray());
+
+            return this;
+        }
+
+        public Packet Read(ref Guid data)
+        {
+            if (checkSize(16))
+            {
+                byte[] bytes = new byte[16];
+                this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
+                data = new Guid(bytes);
+
+                ReadPos += 16;
+            }
+
+            return this;
+        }
+
         public Packet Append(Int16 data)
         {
             Append(BitConverter.GetBytes(data));
