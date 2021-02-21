@@ -42,7 +42,7 @@ namespace Server
             while (running)
             {
                 // Receive incoming packets if there are any
-                if (server.Available > 0)
+                while (server.Available > 0)
                 {
                     IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
                     byte[] rawPacket = server.Receive(ref endpoint);
@@ -61,13 +61,13 @@ namespace Server
 
                         // Respond to ping packets immediately outside of a normal tick timeframe
                         case (short)PacketID.Ping:
-                            Console.WriteLine($"Received ping packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                            //Console.WriteLine($"Received ping packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
                             Packet pingResponsePacket = new Packet();
                             pingResponsePacket.Append((short)PacketID.Ping_Response).Append(runtimeTimer.ElapsedMilliseconds);
-                            Console.WriteLine("ElapsedMilliseconds: " + runtimeTimer.ElapsedMilliseconds);
+                            //Console.WriteLine("ElapsedMilliseconds: " + runtimeTimer.ElapsedMilliseconds);
 
                             server.Send(pingResponsePacket.GetData(), pingResponsePacket.GetSize(), endpoint);
-                            Console.WriteLine($"Sent ping response packet with ID {(short)PacketID.Ping_Response} of size {pingResponsePacket.GetSize()} to {endpoint.Address}:{endpoint.Port}");
+                            //Console.WriteLine($"Sent ping response packet with ID {(short)PacketID.Ping_Response} of size {pingResponsePacket.GetSize()} to {endpoint.Address}:{endpoint.Port}");
                             break;
                     }
                 }
@@ -83,7 +83,7 @@ namespace Server
                         BufferedPacket bufferedPacket = packetBuffer.Dequeue();
 
                         short packetID = (short)PacketID.Invalid;
-                        bufferedPacket.packet.Read(ref packetID).ResetReadPos();
+                        bufferedPacket.packet.ResetReadPos().Read(ref packetID).ResetReadPos();
 
                         switch (packetID)
                         {
@@ -94,11 +94,11 @@ namespace Server
                             // Received server info request packet
                             case (short)PacketID.Server_Info_Request:
                                 // Send server info packet
-                                Console.WriteLine($"Received server info request packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                                //Console.WriteLine($"Received server info request packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
                                 Packet serverInfoPacket = new Packet();
                                 serverInfoPacket.Append((short)PacketID.Server_Info).Append(Config.data.name).Append(Config.data.tickrate).Append(players.Count).Append(Config.data.slotCount).Append(players.Count >= Config.data.slotCount);
                                 server.Send(serverInfoPacket.GetData(), serverInfoPacket.GetSize(), bufferedPacket.endpoint);
-                                Console.WriteLine($"Sent server info packet with ID {(short)PacketID.Server_Info} of size {serverInfoPacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                                //Console.WriteLine($"Sent server info packet with ID {(short)PacketID.Server_Info} of size {serverInfoPacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
                                 break;
                             // Received player join packet
                             case (short)PacketID.Player_Join:
@@ -143,7 +143,7 @@ namespace Server
                                     foreach(var player in players)
                                     {
                                         server.Send(joinNotificationPacket.GetData(), joinNotificationPacket.GetSize(), player.Value.endpoint);
-                                        Console.WriteLine($"Sent player join notification packet with ID {(short)PacketID.Player_Join_Notification} of size {joinNotificationPacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                                        //Console.WriteLine($"Sent player join notification packet with ID {(short)PacketID.Player_Join_Notification} of size {joinNotificationPacket.GetSize()} to {player.Value.endpoint.Address}:{player.Value.endpoint.Port}");
                                     }
 
                                     // Send player join response packet (accepted)
@@ -152,7 +152,7 @@ namespace Server
 
                                     // Add player entity to dictionary
                                     players.Add(playerGuid, new PlayerEntity(bufferedPacket.endpoint, playerToken, name, position, null, playerHue, nametagHue));
-                                    Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}");
+                                    Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}, PlayerCount: {players.Count}");
                                 }
                                 break;
                             case (short)PacketID.Player_Move:
@@ -169,7 +169,13 @@ namespace Server
                                     {
                                         players[movePlayerGuid].position += new Vector2f(dx, dy);
                                         statusUpdateNeeded = true;
+                                    } else
+                                    {
+                                        Console.WriteLine($"Given player token does not match: {movePlayerToken} != {players[movePlayerGuid].token}");
                                     }
+                                } else
+                                {
+                                    Console.WriteLine($"Player guid not in player list: {movePlayerGuid}");
                                 }
                                 break;
                             case (short)PacketID.Player_Rotate:
@@ -190,6 +196,7 @@ namespace Server
                                 }
                                 break;
                             case (short)PacketID.Player_Leave:
+                                Console.WriteLine($"Received player leave packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
                                 Guid leavingPlayerGuid = Guid.Empty;
                                 Guid leavingPlayerToken = Guid.Empty;
 
@@ -208,11 +215,12 @@ namespace Server
                                         foreach(var player in players)
                                         {
                                             server.Send(playerLeaveNotificationPacket.GetData(), playerLeaveNotificationPacket.GetSize(), player.Value.endpoint);
-                                            Console.WriteLine($"Sent player leave notification packet with ID {(short)PacketID.Player_Leave_Notification} of size {playerLeaveNotificationPacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                                            //Console.WriteLine($"Sent player leave notification packet with ID {(short)PacketID.Player_Leave_Notification} of size {playerLeaveNotificationPacket.GetSize()} to {player.Value.endpoint.Address}:{player.Value.endpoint.Port}");
                                         }
+
+                                        Console.WriteLine($"Player {leavingPlayerGuid} left, PlayerCount: {players.Count}");
                                     }
                                 }
-
                                 break;
                         }
                     }

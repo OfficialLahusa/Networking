@@ -53,6 +53,11 @@ namespace SFML_Engine
             return states.First;
         }
 
+        public bool IsCurrent(State state)
+        {
+            return GetCurrent().Value == state;
+        }
+
         public int GetDrawDepth()
         {
             int drawDepth = 0;

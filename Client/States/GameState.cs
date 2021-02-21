@@ -11,11 +11,13 @@ using System.Net.Sockets;
 using System.Net;
 using LahusaPackets;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Client.States
 {
     public class GameState : State
     {
+        View view;
         Guid localPlayerGuid = Guid.Empty;
         Guid localPlayerToken = Guid.Empty;
         PlayerEntity localPlayer;
@@ -29,6 +31,16 @@ namespace Client.States
 
         public GameState(Game game) : base(game)
         {
+            view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
+
+            #region Resources
+            // Load Font
+            if (!game.fonts.ContainsKey("montserrat"))
+            {
+                game.fonts.Add("montserrat", new Font("res/Montserrat-Bold.ttf"));
+            }
+            #endregion
+
             Console.WriteLine("Networking Client - (C) Lasse Huber-Saffer, " + DateTime.UtcNow.Year);
             client = new UdpClient();
 
@@ -129,7 +141,7 @@ namespace Client.States
             Packet serverInfoRequestPacket = new Packet();
             serverInfoRequestPacket.Append((short)Server.PacketID.Server_Info_Request);
             client.Send(serverInfoRequestPacket.GetData(), serverInfoRequestPacket.GetSize());
-            Console.WriteLine($"Sent server info request packet with ID {(short)Server.PacketID.Server_Info_Request} of size {serverInfoRequestPacket.GetSize()} to {server.Address}:{server.Port}");
+            //Console.WriteLine($"Sent server info request packet with ID {(short)Server.PacketID.Server_Info_Request} of size {serverInfoRequestPacket.GetSize()} to {server.Address}:{server.Port}");
             
             // Receive server info packet
             short serverInfoPacketID = -1;
@@ -149,7 +161,7 @@ namespace Client.States
             bool isFull = false;
 
             serverInfoPacket.Read(ref serverName).Read(ref tickrate).Read(ref playerCount).Read(ref slotCount).Read(ref isFull);
-            Console.WriteLine($"Received server info packet with ID {serverInfoPacketID} of size {serverInfoPacket.GetSize()} from {serverInfoEndpoint.Address}:{serverInfoEndpoint.Port}");
+            //Console.WriteLine($"Received server info packet with ID {serverInfoPacketID} of size {serverInfoPacket.GetSize()} from {serverInfoEndpoint.Address}:{serverInfoEndpoint.Port}");
             Console.WriteLine($"Server Name: \"{serverName}\", tickrate: {tickrate}, slots: ({playerCount}/{slotCount}), full: {isFull}");
             #endregion
 
@@ -197,7 +209,7 @@ namespace Client.States
                 float entityPosX = 400, entityPosY = 400, entityRotation = 0;
                 joinResponsePacket.Read(ref entityGuid).Read(ref entityName).Read(ref entityHue).Read(ref entityNametagHue).Read(ref entityPosX).Read(ref entityPosY).Read(ref entityRotation);
 
-                players.Add(entityGuid, new PlayerEntity(entityName, new Vector2f(entityPosX, entityPosY), entityHue, entityNametagHue));
+                players.Add(entityGuid, new PlayerEntity(entityName, game.fonts["montserrat"], new Vector2f(entityPosX, entityPosY), entityHue, entityNametagHue));
                 players[entityGuid].UpdateRotation(entityRotation);
             }
 
@@ -206,21 +218,45 @@ namespace Client.States
             #endregion
 
             // Initialize PlayerEntity locally
-            localPlayer = new PlayerEntity(Config.data.name, new Vector2f(x, y), Config.data.playerHue, Config.data.nametagHue);
+            localPlayer = new PlayerEntity(Config.data.name, game.fonts["montserrat"], new Vector2f(x, y), Config.data.playerHue, Config.data.nametagHue);
 
             #region Eventhandling
             game.window.Closed += OnWindowClosed;
+            game.window.Resized += OnWindowResized;
             #endregion
+        }
+
+        private void OnWindowResized(object sender, SizeEventArgs e)
+        {
+            if (!game.stateMachine.IsCurrent(this))
+            {
+                return;
+            }
+            else
+            {
+
+                view.Size = new Vector2f(e.Width, e.Height);
+                return;
+            }
         }
 
         private void OnWindowClosed(object sender, EventArgs e)
         {
-            Packet leavePacket = new Packet();
-            leavePacket.Append((short)Server.PacketID.Player_Leave).Append(localPlayerGuid).Append(localPlayerToken);
-            client.Send(leavePacket.GetData(), leavePacket.GetSize());
+            if(!game.stateMachine.IsCurrent(this))
+            {
+                return;
+            } else
+            {
 
-            game.window.Close();
-            return;
+                Leave();
+
+                game.window.Close();
+                return;
+            }
+        }
+        ~GameState()
+        {
+
         }
 
         public override bool IsOpaque
@@ -233,14 +269,23 @@ namespace Client.States
 
         public override void Draw(float deltaTime)
         {
+            // Clear to background color
             game.window.Clear(new Color(50, 200, 65));
 
+            // Set view to player view
+            game.window.SetView(view);
+
+            // Draw all remote entities
             foreach(PlayerEntity player in players.Values)
             {
                 game.window.Draw(player);
             }
 
+            // Draw local player
             game.window.Draw(localPlayer);
+
+            // Reset view to default view
+            game.window.SetView(game.window.DefaultView);
         }
 
         public override void HandleInput(float deltaTime)
@@ -249,7 +294,8 @@ namespace Client.States
             {
                 if(Keyboard.IsKeyPressed(Keyboard.Key.Escape))
                 {
-                    game.stateMachine.RemoveCurrent();
+                    Leave();
+                    game.stateMachine.ReplaceCurrent(new LoginState(game));
                 }
 
                 Vector2f moveVector = new Vector2f(0, 0);
@@ -288,8 +334,8 @@ namespace Client.States
                 //localPlayer.Move(moveVector);
 
                 float oldRotation = playerRotation;
-                Vector2f mousePos = new Vector2f(Mouse.GetPosition(game.window).X, Mouse.GetPosition(game.window).Y);
-                playerRotation = (float)Math.Atan2(mousePos.Y - localPlayer.Position.Y, mousePos.X - localPlayer.Position.X) / (float)Math.PI * 180.0f + 180.0f;
+                Vector2f mousePos = game.window.MapPixelToCoords(Mouse.GetPosition(game.window), view);
+                playerRotation = (float)Math.Atan2(localPlayer.Position.Y - mousePos.Y, localPlayer.Position.X - mousePos.X) / (float)Math.PI * 180.0f;
 
                 if (playerRotation != oldRotation)
                 {
@@ -304,6 +350,8 @@ namespace Client.States
         public override void Update(float deltaTime)
         {
             HandlePackets();
+
+            view.Center += 0.9f * Math.Min(1.0f, 10*deltaTime) * (localPlayer.Position - view.Center);
 
             //Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
 
@@ -333,18 +381,19 @@ namespace Client.States
                         break;
                     // Player join notification packet
                     case (short)Server.PacketID.Player_Join_Notification:
+                        Console.WriteLine($"Received player join notification packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
                         Guid joinedPlayerGuid = Guid.Empty;
                         string joinedPlayerName = string.Empty;
                         int joinedPlayerHue = 0, joinedPlayerNametagHue = 0;
                         float joinedPlayerPosX = 0, joinedPlayerPosY = 0;
                         receivedPacket.Read(ref packetID).Read(ref joinedPlayerGuid).Read(ref joinedPlayerName).Read(ref joinedPlayerHue).Read(ref joinedPlayerNametagHue).Read(ref joinedPlayerPosX).Read(ref joinedPlayerPosY);
 
-                        players.Add(joinedPlayerGuid, new PlayerEntity(joinedPlayerName, new Vector2f(joinedPlayerPosX, joinedPlayerPosY), joinedPlayerHue, joinedPlayerNametagHue));
+                        players.Add(joinedPlayerGuid, new PlayerEntity(joinedPlayerName, game.fonts["montserrat"], new Vector2f(joinedPlayerPosX, joinedPlayerPosY), joinedPlayerHue, joinedPlayerNametagHue));
                         break;
                     // Player leave notification packet
                     case (short)Server.PacketID.Player_Leave_Notification:
+                        Console.WriteLine($"Received player leave notification packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
                         Guid leavingPlayerGuid = Guid.Empty;
-
                         receivedPacket.Read(ref packetID).Read(ref leavingPlayerGuid);
 
                         if(leavingPlayerGuid == localPlayerGuid)
@@ -405,7 +454,7 @@ namespace Client.States
             pingPacket.Append((short)Server.PacketID.Ping);
 
             client.Send(pingPacket.GetData(), pingPacket.GetSize());
-            Console.WriteLine($"Sent ping packet with ID {(short)Server.PacketID.Ping} of size {pingPacket.GetSize()} to {server.Address}:{server.Port}");
+            //Console.WriteLine($"Sent ping packet with ID {(short)Server.PacketID.Ping} of size {pingPacket.GetSize()} to {server.Address}:{server.Port}");
             pingTimer.Restart();
             do
             {
@@ -429,9 +478,16 @@ namespace Client.States
             short pingResponsePacketID = -1;
             int timestampOffset = -1;
             pingResponsePacket.Read(ref pingResponsePacketID).Read(ref timestampOffset);
-            Console.WriteLine($"Received ping response packet with ID {pingResponsePacketID} of size {pingResponsePacket.GetSize()} from {endpointOfPingResponse.Address}:{endpointOfPingResponse.Port}");
+            //Console.WriteLine($"Received ping response packet with ID {pingResponsePacketID} of size {pingResponsePacket.GetSize()} from {endpointOfPingResponse.Address}:{endpointOfPingResponse.Port}");
 
             return (ping, timestampOffset);
+        }
+
+        private void Leave()
+        {
+            Packet leavePacket = new Packet();
+            leavePacket.Append((short)Server.PacketID.Player_Leave).Append(localPlayerGuid).Append(localPlayerToken);
+            client.Send(leavePacket.GetData(), leavePacket.GetSize());
         }
     }
 }

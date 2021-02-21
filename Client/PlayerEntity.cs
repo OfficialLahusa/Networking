@@ -69,12 +69,12 @@ namespace Client
             }
         }
 
-        public PlayerEntity(string name, Vector2f pos, int playerHue, int nametagHue)
+        public PlayerEntity(string name, Font font, Vector2f pos, int playerHue, int nametagHue)
         {
             entity = new CircleShape(entityRadius);
             leftHand = new CircleShape(handRadius);
             rightHand = new CircleShape(handRadius);
-            font = new Font("res/Montserrat-Bold.ttf");
+            this.font = font;
             nametag = new Text(name, font);
 
             SetColorFromHue(playerHue);

@@ -26,7 +26,6 @@ namespace Client.States
         InputState inputState = InputState.None;
 
         // Resources
-        Font font;
         Color defaultColor = Color.White;
         Color highlightedColor = Color.Yellow;
         Texture colorPickerTexture;
@@ -69,8 +68,12 @@ namespace Client.States
         public LoginState(Game game) : base(game)
         {
             #region Resources
-            // Font
-            font = new Font("res/Montserrat-Bold.ttf");
+            // Load Font
+            if(!game.fonts.ContainsKey("montserrat"))
+            {
+                game.fonts.Add("montserrat", new Font("res/Montserrat-Bold.ttf"));
+            }
+
 
             // ColorPicker & BrightnessPicker Textures
             colorPickerTexture = new Texture("res/colorpicker.png");
@@ -79,49 +82,49 @@ namespace Client.States
 
             #region Texts
             // Screen title
-            title = new Text("Networking Test", font, 42);
+            title = new Text("Networking Test", game.fonts["montserrat"], 42);
             title.Position = new Vector2f(16, 16);
             title.FillColor = defaultColor;
 
             // Player name label
-            playerNameLabel = new Text("Name:", font, 32);
+            playerNameLabel = new Text("Name:", game.fonts["montserrat"], 32);
             playerNameLabel.Position = new Vector2f(16, 96);
             playerNameLabel.FillColor = defaultColor;
 
             // Nametag color label
-            nametagColorLabel = new Text("Nametag:", font, 32);
+            nametagColorLabel = new Text("Nametag:", game.fonts["montserrat"], 32);
             nametagColorLabel.Position = new Vector2f(16, playerNameLabel.Position.Y + playerNameLabel.CharacterSize + 16);
             nametagColorLabel.FillColor = defaultColor;
 
             // Player color label
-            playerColorLabel = new Text("Player:", font, 32);
+            playerColorLabel = new Text("Player:", game.fonts["montserrat"], 32);
             playerColorLabel.Position = new Vector2f(16, nametagColorLabel.Position.Y + nametagColorLabel.CharacterSize + 16);
             playerColorLabel.FillColor = defaultColor;
 
             // Hostname label
-            hostnameLabel = new Text("Host:", font, 32);
+            hostnameLabel = new Text("Host:", game.fonts["montserrat"], 32);
             hostnameLabel.Position = new Vector2f(16, playerColorLabel.Position.Y + 2 * playerColorLabel.CharacterSize + 16);
             hostnameLabel.FillColor = defaultColor;
 
             // Port label
-            portLabel = new Text("Port:", font, 32);
+            portLabel = new Text("Port:", game.fonts["montserrat"], 32);
             portLabel.Position = new Vector2f(16, hostnameLabel.Position.Y + hostnameLabel.CharacterSize + 16);
             portLabel.FillColor = defaultColor;
             #endregion
 
             #region InputFields
             // Player name input
-            playerNameInput = new Text(Config.data.name, font, 32);
+            playerNameInput = new Text(Config.data.name, game.fonts["montserrat"], 32);
             playerNameInput.Position = playerNameLabel.Position + new Vector2f(playerNameLabel.GetLocalBounds().Width + 16, 0);
             playerNameInput.FillColor = defaultColor;
 
             // Hostname input
-            hostnameInput = new Text(Config.data.hostname, font, 32);
+            hostnameInput = new Text(Config.data.hostname, game.fonts["montserrat"], 32);
             hostnameInput.Position = hostnameLabel.Position + new Vector2f(hostnameLabel.GetLocalBounds().Width + 16, 0);
             hostnameInput.FillColor = defaultColor;
 
             // Port input
-            portInput = new Text(Config.data.port.ToString(), font, 32);
+            portInput = new Text(Config.data.port.ToString(), game.fonts["montserrat"], 32);
             portInput.Position = portLabel.Position + new Vector2f(portLabel.GetLocalBounds().Width + 16, 0);
             portInput.FillColor = defaultColor;
             #endregion
@@ -154,14 +157,14 @@ namespace Client.States
 
             #region Buttons
             float quarterWidth = game.window.Size.X / 4.0f;
-            connectButton = new Button("Connect", font, 24, new Vector2f(1 * quarterWidth, 1.3f * portLabel.Position.Y), defaultColor, highlightedColor);
-            saveConfigButton = new Button("Save Config", font, 24, new Vector2f(2 * quarterWidth, 1.3f * portLabel.Position.Y), defaultColor, highlightedColor);
-            resetButton = new Button("Reset", font, 24, new Vector2f(3 * quarterWidth, 1.3f * portLabel.Position.Y), Color.Red, highlightedColor);
+            connectButton = new Button("Connect", game.fonts["montserrat"], 24, new Vector2f(1 * quarterWidth, 1.3f * portLabel.Position.Y), defaultColor, highlightedColor);
+            saveConfigButton = new Button("Save Config", game.fonts["montserrat"], 24, new Vector2f(2 * quarterWidth, 1.3f * portLabel.Position.Y), defaultColor, highlightedColor);
+            resetButton = new Button("Reset", game.fonts["montserrat"], 24, new Vector2f(3 * quarterWidth, 1.3f * portLabel.Position.Y), Color.Red, highlightedColor);
             #endregion
 
             #region Preview PlayerEntity
             // Player preview entity
-            playerPreview = new PlayerEntity(string.Empty, new Vector2f(game.window.Size.X - 64 - 16, playerNameLabel.Position.Y + 64), Config.data.playerHue, Config.data.nametagHue);
+            playerPreview = new PlayerEntity(string.Empty, game.fonts["montserrat"], new Vector2f(game.window.Size.X - 64 - 16, playerNameLabel.Position.Y + 64), Config.data.playerHue, Config.data.nametagHue);
             #endregion
 
             #region Load colors and initialize slider positions
@@ -180,6 +183,11 @@ namespace Client.States
             game.window.MouseButtonReleased += HandleMouseButtonUp;
             game.window.MouseMoved += HandleMouseMoved;
             #endregion
+        }
+
+        ~LoginState()
+        {
+
         }
 
         private void HandleTextInput(object sender, TextEventArgs e)
@@ -238,6 +246,11 @@ namespace Client.States
 
         private void HandleMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (!game.stateMachine.IsCurrent(this))
+            {
+                return;
+            }
+
             // Select player name input
             if (playerNameInput.GetGlobalBounds().Contains(e.X, e.Y))
             {
@@ -284,19 +297,20 @@ namespace Client.States
             }
 
             // Detect button click
-            if(connectButton.Contains(e.X, e.Y))
+            if (connectButton.Contains(e.X, e.Y))
             {
                 Config.data.name = playerNameInput.DisplayedString.Trim();
                 Config.data.nametagHue = (int)MathF.Round(nametagSystemColor.GetHue());
                 Config.data.playerHue = (int)MathF.Round(playerSystemColor.GetHue());
                 Config.data.hostname = hostnameInput.DisplayedString.Trim();
-                if(!short.TryParse(portInput.DisplayedString.Trim(), out Config.data.port))
+                if (!short.TryParse(portInput.DisplayedString.Trim(), out Config.data.port))
                 {
                     Console.WriteLine("Port must be in range [0-65535]");
-                } else
+                }
+                else
                 {
-                    Console.Clear();
-                    game.stateMachine.Add(new GameState(game));
+                    //Console.Clear();
+                    game.stateMachine.ReplaceCurrent(new GameState(game));
                 }
             }
             if (saveConfigButton.Contains(e.X, e.Y))
@@ -439,10 +453,6 @@ namespace Client.States
             {
                 resetButton.Deselect();
             }
-        }
-        ~LoginState()
-        {
-
         }
 
         public override bool IsOpaque

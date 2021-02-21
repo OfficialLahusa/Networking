@@ -10,7 +10,7 @@ namespace Server
     {
         public string name = "Dev Server";
         public short port = 5555;
-        public short tickrate = 60;
-        public int slotCount = 50;
+        public short tickrate = 144;
+        public int slotCount = 10000;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using SFML.Audio;
 using SFML.Window;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,9 @@ namespace SFML_Engine
         public RenderWindow window;
         public StateMachine stateMachine;
         public Random random;
+        public Dictionary<string, Texture> textures;
+        public Dictionary<string, Font> fonts;
+        public Dictionary<string, SoundBuffer> soundBuffers;
         public Clock runtimeClock;
         private Clock deltaClock;
         private float deltaTime;
@@ -22,6 +26,10 @@ namespace SFML_Engine
 
         public Game(uint width, uint height, string title)
         {
+            textures = new Dictionary<string, Texture>();
+            fonts = new Dictionary<string, Font>();
+            soundBuffers = new Dictionary<string, SoundBuffer>();
+
             ContextSettings contextSettings = new ContextSettings(0, 0, 8);
             window = new(new VideoMode(width, height), title, Styles.Default, contextSettings);
             window.Closed += Window_Closed;
