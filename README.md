@@ -14,14 +14,14 @@ This project is a multiplayer shooter game developed in **.Net 5.0** C# as a net
 
 **Note:** All executables have an integrated config loading system. The "config.yaml" file is contained in the executable working directory and will be restored when deleted.
 
-## Installing, Building and Running
+## Installation
 Download the code from GitHub and install the following dependencies:
 ### NuGet Dependencies:
  - [**SFML.Net**](https://www.nuget.org/packages/SFML.Net/2.5.0?_src=template) v2.5.0
  - [**YamlDotNet**](https://www.nuget.org/packages/YamlDotNet/9.1.4?_src=template) v9.1.4
  - [**System.Runtime**](https://www.nuget.org/packages/System.Runtime/4.3.1?_src=template) v4.3.1
 
-### Building
+## Building and Running
 Open the .sln file in Visual Studio 2019 and build the Server and Client (minimal setup). Make sure your output directories contain all the provided runtimes and resources.
 Run the server binary first, then start up the client and configure how you want your character to look and which host you want to connect to. 
 
