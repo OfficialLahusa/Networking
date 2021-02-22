@@ -25,4 +25,4 @@ Download the code from GitHub and install the following dependencies:
 Open the .sln file in Visual Studio 2019 and build the Server and Client (minimal setup). Make sure your output directories contain all the provided runtimes and resources.
 Run the server binary first, then start up the client and configure how you want your character to look and which host you want to connect to. 
 
-(C) Lasse Huber-Saffer
+© Lasse Huber-Saffer
