@@ -13,7 +13,7 @@ namespace MapToolkit
         public VectorMap()
         {
             DrawLayer = new VertexArray(PrimitiveType.Triangles);
-            DebugLines = new VertexArray(PrimitiveType.Lines);
+            DebugLines = new VertexArray(PrimitiveType.LineStrip);
         }
     }
 }
