@@ -90,6 +90,7 @@ namespace Client
 
             nametag.CharacterSize = 30;  
             nametag.Origin = new Vector2f(nametag.GetLocalBounds().Width / 2.0f, 1.3f * entityRadius + nametag.GetLocalBounds().Height);
+            //nametag.OutlineThickness = 1;
 
             entity.Position = leftHand.Position = rightHand.Position = nametag.Position = new Vector2f(pos.X, pos.Y);
         }
@@ -123,6 +124,7 @@ namespace Client
         {
             hue %= 360;
             nametag.FillColor = ColorConversion.HSVtoRGB(hue, nametagColorSaturation, nametagColorValue);
+            //nametag.OutlineColor = ColorConversion.HSVtoRGB(hue, nametagColorSaturation, (int)(nametagColorValue * ((float)playerOutlineColorValue / (float)playerColorValue)));
         }
 
         public void Move(Vector2f amount)

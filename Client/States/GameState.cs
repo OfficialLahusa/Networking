@@ -12,6 +12,7 @@ using System.Net;
 using LahusaPackets;
 using System.Diagnostics;
 using System.Threading;
+using MapToolkit;
 
 namespace Client.States
 {
@@ -26,11 +27,17 @@ namespace Client.States
         IPEndPoint server;
         long serverTimestampOffset = 0;
 
+        VectorMap map;
+
         // Player Rotation (Deg)
         private float playerRotation = 0.0f;
 
         public GameState(Game game) : base(game)
         {
+            // Load map
+            MapToolkit.SvgMapLoader mapLoader = new MapToolkit.SvgMapLoader();
+            map = mapLoader.LoadMap("res/map/template player.svg");
+
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
 
             #region Resources
@@ -164,7 +171,7 @@ namespace Client.States
             //Console.WriteLine($"Received server info packet with ID {serverInfoPacketID} of size {serverInfoPacket.GetSize()} from {serverInfoEndpoint.Address}:{serverInfoEndpoint.Port}");
             Console.WriteLine($"Server Name: \"{serverName}\", tickrate: {tickrate}, slots: ({playerCount}/{slotCount}), full: {isFull}");
             #endregion
-
+            
             #region Joining
             // Send join packet
             Packet joinPacket = new Packet();
@@ -275,6 +282,12 @@ namespace Client.States
             // Set view to player view
             game.window.SetView(view);
 
+            // Draw map
+            if(map != null)
+            {
+                game.window.Draw(map.DrawLayer);
+                game.window.Draw(map.DebugLines);
+            }
             // Draw all remote entities
             foreach(PlayerEntity player in players.Values)
             {
