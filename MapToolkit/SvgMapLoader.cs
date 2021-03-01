@@ -20,6 +20,8 @@ namespace MapToolkit
             VectorMap map = new VectorMap();
             XDocument xDocument = XDocument.Load(filepath);
 
+            Transform transform = Transform.Identity;
+
             var nodes =
                 from node in xDocument.Descendants()
                 where node.Name.LocalName == "g"
@@ -31,7 +33,7 @@ namespace MapToolkit
                 select node;
             foreach(var node in nodes)
             {
-                HandleGroup(node, ref map);
+                HandleGroup(node, ref map, transform);
             }
 
             return map;
@@ -52,11 +54,11 @@ namespace MapToolkit
             return transform;
         }
 
-        private void HandleGroup(XElement node, ref VectorMap map)
+        private void HandleGroup(XElement node, ref VectorMap map, Transform parentTransform)
         {
             //Console.WriteLine($"Node: {node.Name.LocalName}\n{node}");
             Vector2f startingPos = new Vector2f(0, 0);
-            Transform transform = Transform.Identity;
+            Transform transform = parentTransform * EvaluateTransform(node);
 
             var childNodes =
                 from childNode in node.Descendants()
@@ -70,21 +72,24 @@ namespace MapToolkit
                     default:
                         break;
                     case "g":
-                        HandleGroup(childNode, ref map);
+                        HandleGroup(childNode, ref map, transform);
                         break;
                     case "rect":
-                        HandleRect(childNode, ref map);
+                        HandleRect(childNode, ref map, transform);
                         break;
                     case "path":
-                        HandlePath(childNode, ref map);
+                        HandlePath(childNode, ref map, transform);
                         break;
                 }
             }
         }
 
-        private void HandlePath(XElement node, ref VectorMap map)
+        private void HandlePath(XElement node, ref VectorMap map, Transform parentTransform)
         {
             //Console.WriteLine(node);
+
+            // Read transform
+            Transform transform = parentTransform * EvaluateTransform(node);
 
             // Read fill color from style attribute, if existing
             string style = string.Empty;
@@ -130,19 +135,41 @@ namespace MapToolkit
             for (int i = 0; i < pathSegments.Length; i++)
             {
                 // Handle svg path commands
-                HandlePathCommand(pathSegments[i], ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
+                HandlePathCommand(pathSegments[i], transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
             }
             #endregion
 
             foreach(Vertex vertex in vertices)
             {
-                map.DebugLines.Append(vertex);
+                //map.DebugLines.Append(vertex);
+            }
+
+            if(vertices.Last().Position == vertices.First().Position)
+            {
+                vertices.RemoveAt(vertices.Count - 1);
+            }
+
+            if(vertices.Count == 3)
+            {
+                foreach(Vertex vertex in vertices)
+                {
+                    map.DrawLayer.Append(vertex);
+                }
+            } else
+            {
+                // Assume it's convex
+                for(int i = 1; i < vertices.Count - 1; i++)
+                {
+                    map.DrawLayer.Append(vertices[0]);
+                    map.DrawLayer.Append(vertices[i]);
+                    map.DrawLayer.Append(vertices[i + 1]);
+                }
             }
 
             return;
         }
 
-        private void HandlePathCommand(string command, ref int i, string[] pathSegments, ref List<Vertex> vertices, ref Vector2f currentPos, ref bool hasDoneFirstMove, ref string lastCommand, Color fillColor)
+        private void HandlePathCommand(string command, Transform transform, ref int i, string[] pathSegments, ref List<Vertex> vertices, ref Vector2f currentPos, ref bool hasDoneFirstMove, ref string lastCommand, Color fillColor)
         {
             switch (command)
             {
@@ -151,7 +178,7 @@ namespace MapToolkit
                     if(command != string.Empty)
                     {
                         i -= 1;
-                        HandlePathCommand(lastCommand, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
+                        HandlePathCommand(lastCommand, transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
                     }
                     break;
                 // Absolute move
@@ -173,8 +200,8 @@ namespace MapToolkit
                             float x = float.Parse(pathSegments[i + 1]);
                             float y = float.Parse(pathSegments[i + 2]);
                             Vector2f lineEnd = new Vector2f(x, y);
-                            if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                            vertices.Add(new Vertex(lineEnd, fillColor));
+                            if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                            vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                             currentPos = lineEnd;
                             i += 2;
                         }
@@ -199,8 +226,8 @@ namespace MapToolkit
                             float dx = float.Parse(pathSegments[i + 1]);
                             float dy = float.Parse(pathSegments[i + 2]);
                             Vector2f lineEnd = currentPos + new Vector2f(dx, dy);
-                            if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                            vertices.Add(new Vertex(lineEnd, fillColor));
+                            if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                            vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                             currentPos = lineEnd;
                             i += 2;
                         }
@@ -214,8 +241,8 @@ namespace MapToolkit
                         float x = float.Parse(pathSegments[i + 1]);
                         float y = float.Parse(pathSegments[i + 2]);
                         Vector2f lineEnd = new Vector2f(x, y);
-                        if(vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if(vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 2;
                     }
@@ -227,8 +254,8 @@ namespace MapToolkit
                         float dx = float.Parse(pathSegments[i + 1]);
                         float dy = float.Parse(pathSegments[i + 2]);
                         Vector2f lineEnd = currentPos + new Vector2f(dx, dy);
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 2;
                     }
@@ -239,8 +266,8 @@ namespace MapToolkit
                         lastCommand = "H";
                         float x = float.Parse(pathSegments[i + 1]);
                         Vector2f lineEnd = new Vector2f(x, currentPos.Y);
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 1;
                     }
@@ -251,8 +278,8 @@ namespace MapToolkit
                         lastCommand = "h";
                         float dx = float.Parse(pathSegments[i + 1]);
                         Vector2f lineEnd = new Vector2f(currentPos.X + dx, currentPos.Y);
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 1;
                     }
@@ -263,8 +290,8 @@ namespace MapToolkit
                         lastCommand = "V";
                         float y = float.Parse(pathSegments[i + 1]);
                         Vector2f lineEnd = new Vector2f(currentPos.X, y);
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 1;
                     }
@@ -275,8 +302,8 @@ namespace MapToolkit
                         lastCommand = "v";
                         float dy = float.Parse(pathSegments[i + 1]);
                         Vector2f lineEnd = new Vector2f(currentPos.X, currentPos.Y + dy);
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
-                        vertices.Add(new Vertex(lineEnd, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
+                        vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
                         currentPos = lineEnd;
                         i += 1;
                     }
@@ -286,7 +313,7 @@ namespace MapToolkit
                 case "z":
                     {
                         lastCommand = "Z";
-                        if (vertices.Count == 0) vertices.Add(new Vertex(currentPos, fillColor));
+                        if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(vertices[0].Position, fillColor));
                         currentPos = vertices[0].Position;
                     }
@@ -295,9 +322,12 @@ namespace MapToolkit
             }
         }
 
-        private void HandleRect(XElement node, ref VectorMap map)
+        private void HandleRect(XElement node, ref VectorMap map, Transform parentTransform)
         {
-            //Console.WriteLine(node);
+            Console.WriteLine(node);
+            // Read transform
+            Transform transform = parentTransform * EvaluateTransform(node);
+
             float x, y, width, height;
             x = y = width = height = 0;
 
@@ -333,10 +363,10 @@ namespace MapToolkit
                 }
             }
 
-            Vertex topLeft = new Vertex(new Vector2f(x, y), fillColor);
-            Vertex topRight = new Vertex(new Vector2f(x + width, y), fillColor);
-            Vertex bottomLeft = new Vertex(new Vector2f(x, y + height), fillColor);
-            Vertex bottomRight = new Vertex(new Vector2f(x + width, y + height), fillColor);
+            Vertex topLeft      = new Vertex(transform.TransformPoint(new Vector2f(x, y)),                      fillColor);
+            Vertex topRight     = new Vertex(transform.TransformPoint(new Vector2f(x + width, y)),              fillColor);
+            Vertex bottomLeft   = new Vertex(transform.TransformPoint(new Vector2f(x, y + height)),             fillColor);
+            Vertex bottomRight  = new Vertex(transform.TransformPoint(new Vector2f(x + width, y + height)),     fillColor);
             map.DrawLayer.Append(topLeft);
             map.DrawLayer.Append(topRight);
             map.DrawLayer.Append(bottomLeft);
