@@ -139,11 +139,6 @@ namespace MapToolkit
             }
             #endregion
 
-            foreach(Vertex vertex in vertices)
-            {
-                //map.DebugLines.Append(vertex);
-            }
-
             if(vertices.Last().Position == vertices.First().Position)
             {
                 vertices.RemoveAt(vertices.Count - 1);
@@ -165,6 +160,23 @@ namespace MapToolkit
                     map.DrawLayer.Append(vertices[i + 1]);
                 }
             }
+
+            Vector2f center = new Vector2f(0, 0);
+            foreach (Vertex vertex in vertices)
+            {
+                center += vertex.Position;
+            }
+            center /= vertices.Count;
+
+#if DEBUG
+            const float centerDist = 6;
+            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, -centerDist), Color.Red));
+            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist, -centerDist), Color.Red));
+            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist,  centerDist), Color.Red));
+            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist, -centerDist), Color.Red));
+            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist,  centerDist), Color.Red));
+            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist,  centerDist), Color.Red));
+#endif
 
             return;
         }
