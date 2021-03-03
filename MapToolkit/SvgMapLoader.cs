@@ -15,7 +15,7 @@ namespace MapToolkit
             
         }
 
-        public VectorMap LoadMap(string filepath)
+        public VectorMap LoadMap(string filepath, Font font)
         {
             VectorMap map = new VectorMap();
             XDocument xDocument = XDocument.Load(filepath);
@@ -33,7 +33,7 @@ namespace MapToolkit
                 select node;
             foreach(var node in nodes)
             {
-                HandleGroup(node, ref map, transform);
+                HandleGroup(node, ref map, transform, font);
             }
 
             return map;
@@ -54,7 +54,7 @@ namespace MapToolkit
             return transform;
         }
 
-        private void HandleGroup(XElement node, ref VectorMap map, Transform parentTransform)
+        private void HandleGroup(XElement node, ref VectorMap map, Transform parentTransform, Font font)
         {
             //Console.WriteLine($"Node: {node.Name.LocalName}\n{node}");
             Vector2f startingPos = new Vector2f(0, 0);
@@ -72,21 +72,21 @@ namespace MapToolkit
                     default:
                         break;
                     case "g":
-                        HandleGroup(childNode, ref map, transform);
+                        HandleGroup(childNode, ref map, transform, font);
                         break;
                     case "rect":
                         HandleRect(childNode, ref map, transform);
                         break;
                     case "path":
-                        HandlePath(childNode, ref map, transform);
+                        HandlePath(childNode, ref map, transform, font);
                         break;
                 }
             }
         }
 
-        private void HandlePath(XElement node, ref VectorMap map, Transform parentTransform)
+        private void HandlePath(XElement node, ref VectorMap map, Transform parentTransform, Font font)
         {
-            //Console.WriteLine(node);
+            Console.WriteLine(node);
 
             // Read transform
             Transform transform = parentTransform * EvaluateTransform(node);
@@ -161,12 +161,61 @@ namespace MapToolkit
                 }
             }
 
+            // Calculate path center position
             Vector2f center = new Vector2f(0, 0);
             foreach (Vertex vertex in vertices)
             {
                 center += vertex.Position;
             }
             center /= vertices.Count;
+
+            // Determine winding order
+            for(int i = 0; i < vertices.Count; i++)
+            {
+                Vertex previous, current, next;
+                current = vertices[i];
+
+                if(i == 0)
+                {
+                    previous = vertices[vertices.Count - 1];
+                } else
+                {
+                    previous = vertices[i - 1];
+                }
+
+                if (i == vertices.Count - 1)
+                {
+                    next = vertices[0];
+                }
+                else
+                {
+                    next = vertices[i + 1];
+                }
+
+                Vector2f first = current.Position - center;
+                first /= MathF.Sqrt(first.X * first.X + first.Y * first.Y);
+                Vector2f second = next.Position - center;
+                second /= MathF.Sqrt(second.X * second.X + second.Y * second.Y);
+
+                //float angle = MathF.Acos(first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
+                float angle = MathF.Atan2(first.X * second.Y - first.Y * second.X, first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
+#if DEBUG
+                Console.WriteLine($"[{i}] Angle: {angle}");
+                Text debugText = new Text(i.ToString(), font, 12);
+                debugText.Position = current.Position + new Vector2f(8, 0);
+                map.DebugText.Add(debugText);
+
+                Color markerColor = (angle > 0) ? Color.Blue : Color.Red;
+
+                const float markerDist = 4;
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, -markerDist), markerColor));
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
+                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, markerDist), markerColor));
+#endif
+            }
 
 #if DEBUG
             const float centerDist = 6;
@@ -336,7 +385,7 @@ namespace MapToolkit
 
         private void HandleRect(XElement node, ref VectorMap map, Transform parentTransform)
         {
-            Console.WriteLine(node);
+            //Console.WriteLine(node);
             // Read transform
             Transform transform = parentTransform * EvaluateTransform(node);
 

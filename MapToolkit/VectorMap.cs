@@ -9,11 +9,12 @@ namespace MapToolkit
     {
         public VertexArray DrawLayer;
         public VertexArray DebugLines;
-
+        public List<Text> DebugText;
         public VectorMap()
         {
             DrawLayer = new VertexArray(PrimitiveType.Triangles);
             DebugLines = new VertexArray(PrimitiveType.LineStrip);
+            DebugText = new List<Text>();
         }
     }
 }

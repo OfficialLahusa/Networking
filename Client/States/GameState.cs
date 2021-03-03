@@ -36,7 +36,7 @@ namespace Client.States
         {
             // Load map
             MapToolkit.SvgMapLoader mapLoader = new MapToolkit.SvgMapLoader();
-            map = mapLoader.LoadMap("res/map/template player.svg");
+            map = mapLoader.LoadMap("res/map/template player.svg", game.fonts["montserrat"]);
 
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
 
@@ -287,6 +287,10 @@ namespace Client.States
             {
                 game.window.Draw(map.DrawLayer);
                 game.window.Draw(map.DebugLines);
+                foreach(Text text in map.DebugText)
+                {
+                    game.window.Draw(text);
+                }
             }
             // Draw all remote entities
             foreach(PlayerEntity player in players.Values)
