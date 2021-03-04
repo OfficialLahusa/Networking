@@ -34,6 +34,10 @@ namespace Server
             runtimeTimer = new Stopwatch();
             lastTickTimer = new Stopwatch();
 
+            // Disable error that closes the socket when a client forcibly disconnects
+            // For ref: https://stackoverflow.com/questions/38191968/c-sharp-udp-an-existing-connection-was-forcibly-closed-by-the-remote-host
+            server.Client.IOControl((IOControlCode)(-1744830452), new byte[] { 0, 0, 0, 0 }, null);
+
             runtimeTimer.Start();
             lastTickTimer.Start();
 

@@ -25,33 +25,42 @@ namespace Server
 
         public void HandleImmediatePackets(Dictionary<Guid, PlayerEntity> players, Stopwatch runtimeTimer)
         {
+            // Check if incoming packet bytes are in the buffer
             while (server.Available > 0)
             {
-                IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
-                byte[] rawPacket = server.Receive(ref endpoint);
-                Packet receivedPacket = new Packet(rawPacket);
-
-                short packetID = (short)PacketID.Invalid;
-                receivedPacket.Read(ref packetID).ResetReadPos();
-
-                // Immediate packet handling
-                switch (packetID)
+                // Attempt to receive packets
+                try
                 {
-                    // Add normal packets to the packet buffer for handling in a server tick
-                    default:
-                        packetBuffer.Enqueue(new BufferedPacket(receivedPacket, endpoint));
-                        break;
+                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] rawPacket = server.Receive(ref endpoint);
+                    Packet receivedPacket = new Packet(rawPacket);
 
-                    // Respond to ping packets immediately outside of a normal tick timeframe
-                    case (short)PacketID.Ping:
-                        //Console.WriteLine($"Received ping packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
-                        Packet pingResponsePacket = new Packet();
-                        pingResponsePacket.Append((short)PacketID.Ping_Response).Append(runtimeTimer.ElapsedMilliseconds);
-                        //Console.WriteLine("ElapsedMilliseconds: " + runtimeTimer.ElapsedMilliseconds);
+                    short packetID = (short)PacketID.Invalid;
+                    receivedPacket.Read(ref packetID).ResetReadPos();
 
-                        server.Send(pingResponsePacket.GetData(), pingResponsePacket.GetSize(), endpoint);
-                        //Console.WriteLine($"Sent ping response packet with ID {(short)PacketID.Ping_Response} of size {pingResponsePacket.GetSize()} to {endpoint.Address}:{endpoint.Port}");
-                        break;
+                    // Immediate packet handling
+                    switch (packetID)
+                    {
+                        // Add normal packets to the packet buffer for handling in a server tick
+                        default:
+                            packetBuffer.Enqueue(new BufferedPacket(receivedPacket, endpoint));
+                            break;
+
+                        // Respond to ping packets immediately outside of a normal tick timeframe
+                        case (short)PacketID.Ping:
+                            //Console.WriteLine($"Received ping packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                            Packet pingResponsePacket = new Packet();
+                            pingResponsePacket.Append((short)PacketID.Ping_Response).Append(runtimeTimer.ElapsedMilliseconds);
+
+                            server.Send(pingResponsePacket.GetData(), pingResponsePacket.GetSize(), endpoint);
+                            //Console.WriteLine($"Sent ping response packet with ID {(short)PacketID.Ping_Response} of size {pingResponsePacket.GetSize()} to {endpoint.Address}:{endpoint.Port}");
+                            break;
+                    }
+                }
+                // Catch packet receive socket exceptions
+                catch (SocketException e)
+                {
+                    Console.WriteLine($"SocketException {e.SocketErrorCode}: {e.Message}");
                 }
             }
         }
@@ -88,7 +97,7 @@ namespace Server
                         int nametagHue = 0;
                         bufferedPacket.packet.Read(ref packetID).Read(ref name).Read(ref playerHue).Read(ref nametagHue);
 
-                        Console.WriteLine($"Received player join packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        //Console.WriteLine($"Received player join packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
                         Console.WriteLine($"Player \"{name}\" joined with hue {playerHue} and nametag hue {nametagHue}");
 
                         if (players.Count + 1 > Config.data.slotCount)
@@ -97,7 +106,8 @@ namespace Server
                             Packet joinResponsePacket = new Packet();
                             joinResponsePacket.Append((short)PacketID.Player_Join_Response).Append(false);
                             server.Send(joinResponsePacket.GetData(), joinResponsePacket.GetSize(), bufferedPacket.endpoint);
-                            Console.WriteLine($"Sent player join response packet (accepted: {false}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                            //Console.WriteLine($"Sent player join response packet (accepted: {false}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                            Console.WriteLine("Player join rejected: The server is full");
                         }
                         else
                         {
@@ -129,7 +139,7 @@ namespace Server
 
                             // Send player join response packet (accepted)
                             server.Send(joinResponsePacket.GetData(), joinResponsePacket.GetSize(), bufferedPacket.endpoint);
-                            Console.WriteLine($"Sent player join response packet (accepted: {true}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                            //Console.WriteLine($"Sent player join response packet (accepted: {true}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
 
                             // Add player entity to dictionary
                             players.Add(playerGuid, new PlayerEntity(bufferedPacket.endpoint, playerToken, name, position, null, playerHue, nametagHue));
