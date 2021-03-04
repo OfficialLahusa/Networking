@@ -35,7 +35,7 @@ namespace Client.States
         public GameState(Game game) : base(game)
         {
             // Load map
-            MapToolkit.SvgMapLoader mapLoader = new MapToolkit.SvgMapLoader();
+            SvgMapLoader mapLoader = new SvgMapLoader();
             map = mapLoader.LoadMap("res/map/template player.svg", game.fonts["montserrat"]);
 
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
@@ -138,9 +138,16 @@ namespace Client.States
 
             #region Ping
             // Get ping
-            var pingResult = GetPing();
-            Console.WriteLine($"Ping: {pingResult.ping}ms, ServerTimestampOffset: {pingResult.timestampOffset}");
-            serverTimestampOffset = pingResult.timestampOffset;
+            try
+            {
+                var pingResult = GetPing();
+                Console.WriteLine($"Ping: {pingResult.ping}ms, ServerTimestampOffset: {pingResult.timestampOffset}");
+                serverTimestampOffset = pingResult.timestampOffset;
+            } catch(SocketException e)
+            {
+                return;
+            }
+
             #endregion
 
             #region ServerInfo
@@ -276,6 +283,9 @@ namespace Client.States
 
         public override void Draw(float deltaTime)
         {
+            if (client.Client == null) return;
+            if (!client.Client.Connected) return;
+
             // Clear to background color
             game.window.Clear(new Color(50, 200, 65));
 
@@ -292,8 +302,9 @@ namespace Client.States
                     game.window.Draw(text);
                 }
             }
+
             // Draw all remote entities
-            foreach(PlayerEntity player in players.Values)
+            foreach (PlayerEntity player in players.Values)
             {
                 game.window.Draw(player);
             }
@@ -341,39 +352,50 @@ namespace Client.States
                 }
                 moveVector *= deltaTime;
 
-                if (moveVector.X != 0 || moveVector.Y != 0)
+                // Only send packets if the client is connected to a server
+                if(client.Client != null) if(client.Client.Connected)
                 {
-                    Packet movePacket = new Packet();
-                    movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
-                    client.Send(movePacket.GetData(), movePacket.GetSize());
-                    //Console.WriteLine($"Sent player move packet with ID {(short)Server.PacketID.Player_Rotate} of size {movePacket.GetSize()} to {server.Address}:{server.Port}");
-                }
-                //localPlayer.Move(moveVector);
+                    if (moveVector.X != 0 || moveVector.Y != 0)
+                    {
+                        Packet movePacket = new Packet();
+                        movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
+                        client.Send(movePacket.GetData(), movePacket.GetSize());
+                        //Console.WriteLine($"Sent player move packet with ID {(short)Server.PacketID.Player_Rotate} of size {movePacket.GetSize()} to {server.Address}:{server.Port}");
+                    }
+                    //localPlayer.Move(moveVector);
 
-                float oldRotation = playerRotation;
-                Vector2f mousePos = game.window.MapPixelToCoords(Mouse.GetPosition(game.window), view);
-                playerRotation = (float)Math.Atan2(localPlayer.Position.Y - mousePos.Y, localPlayer.Position.X - mousePos.X) / (float)Math.PI * 180.0f;
+                    float oldRotation = playerRotation;
+                    Vector2f mousePos = game.window.MapPixelToCoords(Mouse.GetPosition(game.window), view);
+                    playerRotation = (float)Math.Atan2(localPlayer.Position.Y - mousePos.Y, localPlayer.Position.X - mousePos.X) / (float)Math.PI * 180.0f;
 
-                if (playerRotation != oldRotation)
-                {
-                    Packet rotatePacket = new Packet();
-                    rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
-                    client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
-                    //Console.WriteLine($"Sent player rotate packet with ID {(short)Server.PacketID.Player_Rotate} of size {rotatePacket.GetSize()} to {server.Address}:{server.Port}");
+                    if (playerRotation != oldRotation)
+                    {
+                        Packet rotatePacket = new Packet();
+                        rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
+                        client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
+                        //Console.WriteLine($"Sent player rotate packet with ID {(short)Server.PacketID.Player_Rotate} of size {rotatePacket.GetSize()} to {server.Address}:{server.Port}");
+                    }
                 }
             }
         }
 
         public override void Update(float deltaTime)
         {
-            HandlePackets();
+            if (client.Client == null || (client.Client != null && !client.Client.Connected))
+            {
+                game.stateMachine.ReplaceCurrent(new LoginState(game));
+                client.Close();
+            }
+            else
+            {
+                HandlePackets();
+                view.Center += 0.9f * Math.Min(1.0f, 10 * deltaTime) * (localPlayer.Position - view.Center);
 
-            view.Center += 0.9f * Math.Min(1.0f, 10*deltaTime) * (localPlayer.Position - view.Center);
+                //Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
 
-            //Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
-
-            //localPlayer.UpdateRotation(playerRotation);
-            //localPlayer.UpdatePosition(localPlayer.Position);
+                //localPlayer.UpdateRotation(playerRotation);
+                //localPlayer.UpdatePosition(localPlayer.Position);
+            }
         }
 
         private void HandlePackets()
@@ -480,9 +502,11 @@ namespace Client.States
                 {
                     rawPingResponsePacket = client.Receive(ref endpointOfPingResponse);
                 }
-                catch (Exception e)
+                catch (SocketException e)
                 {
-                    Console.WriteLine(e.Message);
+                    Console.WriteLine("Could not connect to server: " + e.Message);
+                    game.stateMachine.ReplaceCurrent(new LoginState(game));
+                    throw e;
                 }
 
             } while (!endpointOfPingResponse.Address.Equals(server.Address) || endpointOfPingResponse.Port != server.Port);

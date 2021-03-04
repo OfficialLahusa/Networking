@@ -71,8 +71,9 @@ namespace SFML_Engine
 
                 stateMachine.GetCurrent().Value.HandleInput(deltaTime);
 
-                foreach(State state in stateMachine.states)
+                for(int i = 0; i < stateMachine.states.Count; i++)
                 {
+                    State state = stateMachine.states.ElementAt(i);
                     if(!state.IsPaused)
                     {
                         state.Update(deltaTime);
