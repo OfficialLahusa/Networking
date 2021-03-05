@@ -15,12 +15,18 @@ namespace Server
     {
         public Queue<BufferedPacket> packetBuffer;
         private UdpClient server;
+        private PacketLogger<PacketID> packetLogger;
         public bool StatusUpdateNeeded = false;
 
         public PacketHandler(UdpClient server)
         {
             this.server = server;
+            packetLogger = new PacketLogger<PacketID>();
             packetBuffer = new Queue<BufferedPacket>();
+
+            packetLogger.FilterMode = FilterMode.Whitelist;
+            packetLogger.Filter = null;
+            packetLogger.PacketDirectionFilter = PacketDirection.Neutral;
         }
 
         public void HandleImmediatePackets(Dictionary<Guid, PlayerEntity> players, Stopwatch runtimeTimer)
@@ -48,12 +54,12 @@ namespace Server
 
                         // Respond to ping packets immediately outside of a normal tick timeframe
                         case (short)PacketID.Ping:
-                            //Console.WriteLine($"Received ping packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                            packetLogger.Log(receivedPacket, endpoint, PacketDirection.Received, (PacketID)packetID);
                             Packet pingResponsePacket = new Packet();
                             pingResponsePacket.Append((short)PacketID.Ping_Response).Append(runtimeTimer.ElapsedMilliseconds);
 
                             server.Send(pingResponsePacket.GetData(), pingResponsePacket.GetSize(), endpoint);
-                            //Console.WriteLine($"Sent ping response packet with ID {(short)PacketID.Ping_Response} of size {pingResponsePacket.GetSize()} to {endpoint.Address}:{endpoint.Port}");
+                            packetLogger.Log(pingResponsePacket, endpoint, PacketDirection.Sent, PacketID.Ping_Response);
                             break;
                     }
                 }
@@ -83,11 +89,11 @@ namespace Server
                     // Received server info request packet
                     case (short)PacketID.Server_Info_Request:
                         // Send server info packet
-                        //Console.WriteLine($"Received server info request packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(bufferedPacket.packet, bufferedPacket.endpoint, PacketDirection.Received, (PacketID)packetID);
                         Packet serverInfoPacket = new Packet();
                         serverInfoPacket.Append((short)PacketID.Server_Info).Append(Config.data.name).Append(Config.data.tickrate).Append(players.Count).Append(Config.data.slotCount).Append(players.Count >= Config.data.slotCount);
                         server.Send(serverInfoPacket.GetData(), serverInfoPacket.GetSize(), bufferedPacket.endpoint);
-                        //Console.WriteLine($"Sent server info packet with ID {(short)PacketID.Server_Info} of size {serverInfoPacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(serverInfoPacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Server_Info);
                         break;
                     // Received player join packet
                     case (short)PacketID.Player_Join:
@@ -97,7 +103,7 @@ namespace Server
                         int nametagHue = 0;
                         bufferedPacket.packet.Read(ref packetID).Read(ref name).Read(ref playerHue).Read(ref nametagHue);
 
-                        //Console.WriteLine($"Received player join packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(bufferedPacket.packet, bufferedPacket.endpoint, PacketDirection.Received, (PacketID)packetID);
                         Console.WriteLine($"Player \"{name}\" joined with hue {playerHue} and nametag hue {nametagHue}");
 
                         if (players.Count + 1 > Config.data.slotCount)
@@ -106,7 +112,7 @@ namespace Server
                             Packet joinResponsePacket = new Packet();
                             joinResponsePacket.Append((short)PacketID.Player_Join_Response).Append(false);
                             server.Send(joinResponsePacket.GetData(), joinResponsePacket.GetSize(), bufferedPacket.endpoint);
-                            //Console.WriteLine($"Sent player join response packet (accepted: {false}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                            packetLogger.Log(joinResponsePacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Player_Join_Response);
                             Console.WriteLine("Player join rejected: The server is full");
                         }
                         else
@@ -134,12 +140,12 @@ namespace Server
                             foreach (var player in players)
                             {
                                 server.Send(joinNotificationPacket.GetData(), joinNotificationPacket.GetSize(), player.Value.endpoint);
-                                //Console.WriteLine($"Sent player join notification packet with ID {(short)PacketID.Player_Join_Notification} of size {joinNotificationPacket.GetSize()} to {player.Value.endpoint.Address}:{player.Value.endpoint.Port}");
+                                packetLogger.Log(joinNotificationPacket, player.Value.endpoint, PacketDirection.Sent, PacketID.Player_Join_Notification);
                             }
 
                             // Send player join response packet (accepted)
                             server.Send(joinResponsePacket.GetData(), joinResponsePacket.GetSize(), bufferedPacket.endpoint);
-                            //Console.WriteLine($"Sent player join response packet (accepted: {true}) with ID {(short)PacketID.Player_Join_Response} of size {joinResponsePacket.GetSize()} to {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                            packetLogger.Log(joinResponsePacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Player_Join_Response);
 
                             // Add player entity to dictionary
                             players.Add(playerGuid, new PlayerEntity(bufferedPacket.endpoint, playerToken, name, position, null, playerHue, nametagHue));
@@ -152,7 +158,7 @@ namespace Server
                         float dx = 0, dy = 0;
 
                         bufferedPacket.packet.Read(ref packetID).Read(ref movePlayerGuid).Read(ref movePlayerToken).Read(ref dx).Read(ref dy);
-                        //Console.WriteLine($"Received player move packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(bufferedPacket.packet, bufferedPacket.endpoint, PacketDirection.Received, (PacketID)packetID);
 
                         if (players.ContainsKey(movePlayerGuid))
                         {
@@ -177,7 +183,7 @@ namespace Server
                         float rot = 0;
 
                         bufferedPacket.packet.Read(ref packetID).Read(ref rotatePlayerGuid).Read(ref rotatePlayerToken).Read(ref rot);
-                        //Console.WriteLine($"Received player rotation packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(bufferedPacket.packet, bufferedPacket.endpoint, PacketDirection.Received, (PacketID)packetID);
 
                         if (players.ContainsKey(rotatePlayerGuid))
                         {
@@ -189,7 +195,7 @@ namespace Server
                         }
                         break;
                     case (short)PacketID.Player_Leave:
-                        Console.WriteLine($"Received player leave packet with ID {packetID} of size {bufferedPacket.packet.GetSize()} from {bufferedPacket.endpoint.Address}:{bufferedPacket.endpoint.Port}");
+                        packetLogger.Log(bufferedPacket.packet, bufferedPacket.endpoint, PacketDirection.Received, (PacketID)packetID);
                         Guid leavingPlayerGuid = Guid.Empty;
                         Guid leavingPlayerToken = Guid.Empty;
 
@@ -208,7 +214,7 @@ namespace Server
                                 foreach (var player in players)
                                 {
                                     server.Send(playerLeaveNotificationPacket.GetData(), playerLeaveNotificationPacket.GetSize(), player.Value.endpoint);
-                                    //Console.WriteLine($"Sent player leave notification packet with ID {(short)PacketID.Player_Leave_Notification} of size {playerLeaveNotificationPacket.GetSize()} to {player.Value.endpoint.Address}:{player.Value.endpoint.Port}");
+                                    packetLogger.Log(playerLeaveNotificationPacket, player.Value.endpoint, PacketDirection.Sent, PacketID.Player_Leave_Notification);
                                 }
 
                                 Console.WriteLine($"Player {leavingPlayerGuid} left, PlayerCount: {players.Count}");
@@ -233,6 +239,7 @@ namespace Server
                 foreach (var player in players)
                 {
                     server.Send(statusPacket.GetData(), statusPacket.GetSize(), player.Value.endpoint);
+                    packetLogger.Log(statusPacket, player.Value.endpoint, PacketDirection.Sent, PacketID.Status);
                 }
 
                 StatusUpdateNeeded = false;
