@@ -91,6 +91,7 @@ namespace MapToolkit
             // Read transform
             Transform transform = parentTransform * EvaluateTransform(node);
 
+            #region Style data
             // Read fill color from style attribute, if existing
             string style = string.Empty;
             Color fillColor = Color.Magenta;
@@ -107,7 +108,9 @@ namespace MapToolkit
                     fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6));
                 }
             }
+            #endregion
 
+            #region Path segmentation
             XAttribute pathAttrib = node.Attribute("d");
 
             // Return if no path attribute was found
@@ -125,8 +128,10 @@ namespace MapToolkit
             {
                 return;
             }
-            
+            #endregion
+
             List<Vertex> vertices = new List<Vertex>();
+
             #region PathCommands
             Vector2f currentPos = new Vector2f(0, 0);
             bool hasDoneFirstMove = false;
@@ -153,82 +158,139 @@ namespace MapToolkit
             } else
             {
                 // Assume it's convex
-                for(int i = 1; i < vertices.Count - 1; i++)
+                for (int i = 1; i < vertices.Count - 1; i++)
                 {
                     map.DrawLayer.Append(vertices[0]);
                     map.DrawLayer.Append(vertices[i]);
                     map.DrawLayer.Append(vertices[i + 1]);
                 }
-            }
 
-            // Calculate path center position
-            Vector2f center = new Vector2f(0, 0);
-            foreach (Vertex vertex in vertices)
-            {
-                center += vertex.Position;
-            }
-            center /= vertices.Count;
-
-            // Determine winding order
-            for(int i = 0; i < vertices.Count; i++)
-            {
-                Vertex previous, current, next;
-                current = vertices[i];
-
-                if(i == 0)
+                // Calculate path center position
+                Vector2f center = new Vector2f(0, 0);
+                foreach (Vertex vertex in vertices)
                 {
-                    previous = vertices[^1];
-                } else
+                    center += vertex.Position;
+                }
+                center /= vertices.Count;
+
+                // Determine winding order
+                int windingBias = 0;
+                for (int i = 0; i < vertices.Count; i++)
                 {
-                    previous = vertices[i - 1];
+                    #region Vertices for calculation
+                    Vertex previous, current, next;
+                    current = vertices[i];
+
+                    if (i == 0)
+                    {
+                        previous = vertices[^1];
+                    }
+                    else
+                    {
+                        previous = vertices[i - 1];
+                    }
+
+                    if (i == vertices.Count - 1)
+                    {
+                        next = vertices[0];
+                    }
+                    else
+                    {
+                        next = vertices[i + 1];
+                    }
+                    #endregion
+
+                    Vector2f firstWinding = current.Position - center;
+                    firstWinding /= MathF.Sqrt(firstWinding.X * firstWinding.X + firstWinding.Y * firstWinding.Y);
+                    Vector2f secondWinding = next.Position - center;
+                    secondWinding /= MathF.Sqrt(secondWinding.X * secondWinding.X + secondWinding.Y * secondWinding.Y);
+
+                    float windingAngle = MathF.Atan2(firstWinding.X * secondWinding.Y - firstWinding.Y * secondWinding.X, firstWinding.X * secondWinding.X + firstWinding.Y * secondWinding.Y) / MathF.PI * 180.0f;
+
+                    windingBias += (windingAngle > 0) ? 1 : -1;
                 }
 
-                if (i == vertices.Count - 1)
+                // Convert counter-clockwise polygon to clockwise polygon
+                if (windingBias <= 0)
                 {
-                    next = vertices[0];
-                }
-                else
-                {
-                    next = vertices[i + 1];
+                    vertices.Reverse();
                 }
 
-                Vector2f first = current.Position - center;
-                first /= MathF.Sqrt(first.X * first.X + first.Y * first.Y);
-                Vector2f second = next.Position - center;
-                second /= MathF.Sqrt(second.X * second.X + second.Y * second.Y);
 
-                //float angle = MathF.Acos(first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
-                float angle = MathF.Atan2(first.X * second.Y - first.Y * second.X, first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
+                bool containsConcaveVertices = false;
+                for (int i = 0; i < vertices.Count; i++)
+                {
+                    #region Vertices for calculation
+                    Vertex previous, current, next;
+                    current = vertices[i];
+
+                    if (i == 0)
+                    {
+                        previous = vertices[^1];
+                    }
+                    else
+                    {
+                        previous = vertices[i - 1];
+                    }
+
+                    if (i == vertices.Count - 1)
+                    {
+                        next = vertices[0];
+                    }
+                    else
+                    {
+                        next = vertices[i + 1];
+                    }
+                    #endregion
+
 #if DEBUG
-                Console.WriteLine($"[{i}] Angle: {angle}");
-                Text debugText = new Text(i.ToString(), font, 12)
-                {
-                    Position = current.Position + new Vector2f(8, 0)
-                };
-                map.DebugText.Add(debugText);
-
-                Color markerColor = (angle > 0) ? Color.Blue : Color.Red;
-
-                const float markerDist = 4;
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, -markerDist), markerColor));
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
-                map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, markerDist), markerColor));
+                    Text debugText = new Text(i.ToString(), font, 12)
+                    {
+                        Position = current.Position + new Vector2f(8, 0)
+                    };
+                    map.DebugText.Add(debugText);
 #endif
-            }
 
+                    Vector2f first = current.Position - previous.Position;
+                    first /= MathF.Sqrt(first.X * first.X + first.Y * first.Y);
+                    Vector2f second = next.Position - previous.Position;
+                    second /= MathF.Sqrt(second.X * second.X + second.Y * second.Y);
+
+                    float angle = MathF.Atan2(first.X * second.Y - first.Y * second.X, first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
+
+                    bool convex = angle >= 0;
+
+                    if (!convex) containsConcaveVertices = true;
+
+                    #region Vertex marker
 #if DEBUG
-            const float centerDist = 6;
-            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, -centerDist), Color.Red));
-            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist, -centerDist), Color.Red));
-            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist,  centerDist), Color.Red));
-            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist, -centerDist), Color.Red));
-            map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist,  centerDist), Color.Red));
-            map.DrawLayer.Append(new Vertex(center + new Vector2f( centerDist,  centerDist), Color.Red));
+                    // Draw vertex marker in angle sign color
+                    Color markerColor = (convex) ? Color.Blue : Color.Red;
+                    const float markerDist = 4;
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, -markerDist), markerColor));
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, -markerDist), markerColor));
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
+                    map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, markerDist), markerColor));
 #endif
+                    #endregion
+                }
 
+                #region Center marker
+#if DEBUG
+                // Draw center marker in winding order color
+                Color centerColor = (!containsConcaveVertices) ? Color.Blue : Color.Red;
+                const float centerDist = 6;
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, -centerDist), centerColor));
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(centerDist, -centerDist), centerColor));
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, centerDist), centerColor));
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(centerDist, -centerDist), centerColor));
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, centerDist), centerColor));
+                map.DrawLayer.Append(new Vertex(center + new Vector2f(centerDist, centerDist), centerColor));
+#endif
+                #endregion
+            }
             return;
         }
 
