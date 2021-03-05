@@ -10,20 +10,27 @@ namespace LahusaPackets
     public class PacketLogger<PacketIDType> where PacketIDType : struct, IConvertible
     {
         public FilterMode FilterMode = FilterMode.Blacklist;
-        public int Filter = 0;
+        public PacketDirection PacketDirectionFilter = PacketDirection.Neutral;
+        public int? Filter = null;
 
         public PacketLogger() {
 
         }
 
         [Conditional("DEBUG")]
-        public void Log(Packet packet, IPEndPoint endpoint, PacketLogMode logType, PacketIDType packetType)
+        public void Log(Packet packet, IPEndPoint endpoint, PacketDirection direction, PacketIDType packetType)
         {
             int id = (int)Convert.ChangeType(packetType, typeof(int));
 
             // Check whitelist condition
             if (FilterMode == FilterMode.Whitelist)
             {
+                // If the filter is null, discard all packets
+                if(Filter == null)
+                {
+                    return;
+                }
+
                 // Id is not contained in whitelist
                 if ((Filter & id) != id)
                 {
@@ -33,8 +40,22 @@ namespace LahusaPackets
             // Check blacklist condition
             else if(FilterMode == FilterMode.Blacklist)
             {
-                // Id is contained in blacklist
-                if ((Filter & id) == id)
+                // Check condition only if a filter is set
+                if(Filter != null)
+                {
+                    // Id is contained in blacklist
+                    if ((Filter & id) == id)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // Check if direction filter is specified
+            if(PacketDirectionFilter != PacketDirection.Neutral)
+            {
+                // Reject packets from other directions
+                if(direction != PacketDirectionFilter)
                 {
                     return;
                 }
@@ -42,11 +63,11 @@ namespace LahusaPackets
 
             string verb = string.Empty;
 
-            if (logType == PacketLogMode.Neutral) verb = "Logged";
-            else if (logType == PacketLogMode.Received) verb = "Received";
-            else if (logType == PacketLogMode.Sent) verb = "Sent";
+            if (direction == PacketDirection.Neutral) verb = "Logged";
+            else if (direction == PacketDirection.Received) verb = "Received";
+            else if (direction == PacketDirection.Sent) verb = "Sent";
 
-            Console.WriteLine($"{verb} {packetType} Packet ({packet.GetSize()} bytes) with id {packetType.ToInt32(null)} {((logType == PacketLogMode.Received) ? "from" : "to")} {endpoint.Address}:{endpoint.Port}");
+            Console.WriteLine($"{verb} {packetType} Packet ({packet.GetSize()} bytes) with id {packetType.ToInt32(null)} {((direction == PacketDirection.Received) ? "from" : "to")} {endpoint.Address}:{endpoint.Port}");
         }
     }
 }

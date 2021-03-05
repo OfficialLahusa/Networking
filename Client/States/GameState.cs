@@ -43,7 +43,9 @@ namespace Client.States
         {
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
             packetLogger = new PacketLogger<Server.PacketID>();
-            packetLogger.Filter = (int)Server.PacketID.Player_Rotate | (int)Server.PacketID.Player_Move;
+            packetLogger.FilterMode = FilterMode.Whitelist;
+            packetLogger.Filter = null;
+            packetLogger.PacketDirectionFilter = PacketDirection.Neutral;
 
             #region Resources
             // Load Font
@@ -164,7 +166,7 @@ namespace Client.States
             Packet serverInfoRequestPacket = new Packet();
             serverInfoRequestPacket.Append((short)Server.PacketID.Server_Info_Request);
             client.Send(serverInfoRequestPacket.GetData(), serverInfoRequestPacket.GetSize());
-            packetLogger.Log(serverInfoRequestPacket, server, PacketLogMode.Sent, Server.PacketID.Server_Info_Request);
+            packetLogger.Log(serverInfoRequestPacket, server, PacketDirection.Sent, Server.PacketID.Server_Info_Request);
             
             // Receive server info packet
             short serverInfoPacketID = -1;
@@ -184,7 +186,7 @@ namespace Client.States
             bool isFull = false;
 
             serverInfoPacket.Read(ref serverName).Read(ref tickrate).Read(ref playerCount).Read(ref slotCount).Read(ref isFull);
-            packetLogger.Log(serverInfoPacket, serverInfoEndpoint, PacketLogMode.Received, (Server.PacketID)serverInfoPacketID);
+            packetLogger.Log(serverInfoPacket, serverInfoEndpoint, PacketDirection.Received, (Server.PacketID)serverInfoPacketID);
             Console.WriteLine($"Server Name: \"{serverName}\", tickrate: {tickrate}, slots: ({playerCount}/{slotCount}), full: {isFull}");
             #endregion
             
@@ -193,7 +195,7 @@ namespace Client.States
             Packet joinPacket = new Packet();
             joinPacket.Append((short)Server.PacketID.Player_Join).Append(Config.data.name).Append(Config.data.playerHue).Append(Config.data.nametagHue);
             client.Send(joinPacket.GetData(), joinPacket.GetSize());
-            Console.WriteLine($"Sent player join packet with ID {(short)Server.PacketID.Player_Join} of size {joinPacket.GetSize()} to {server.Address}:{server.Port}");
+            packetLogger.Log(joinPacket, server, PacketDirection.Sent, Server.PacketID.Player_Join);
 
             // Receive join response packet
             short joinResponsePacketID = -1;
@@ -212,7 +214,7 @@ namespace Client.States
 
             if(!didServerAcceptJoin)
             {
-                Console.WriteLine($"Received join response packet (accepted: {didServerAcceptJoin}) with ID {joinResponsePacketID} of size {joinResponsePacket.GetSize()} from {joinResponseEndpoint.Address}:{joinResponseEndpoint.Port}");
+                packetLogger.Log(joinResponsePacket, joinResponseEndpoint, PacketDirection.Received, (Server.PacketID)joinResponsePacketID);
                 Console.WriteLine("Join packet rejected by server");
                 Console.ReadLine();
                 return;
@@ -236,19 +238,20 @@ namespace Client.States
                 players[entityGuid].UpdateRotation(entityRotation);
             }
 
-            Console.WriteLine($"Received join response packet (accepted: {didServerAcceptJoin}) with ID {joinResponsePacketID} of size {joinResponsePacket.GetSize()} from {joinResponseEndpoint.Address}:{joinResponseEndpoint.Port}");
+            packetLogger.Log(joinResponsePacket, joinResponseEndpoint, PacketDirection.Received, (Server.PacketID)joinResponsePacketID);
             Console.WriteLine($"Guid: {localPlayerGuid}, token: {localPlayerToken}, Position: (x: {x}|y: {y}), Initialized {players.Count} preexisting PlayerEntities");
             #endregion
 
             // Initialize PlayerEntity locally
             localPlayer = new PlayerEntity(Config.data.name, game.fonts["montserrat"], new Vector2f(x, y), Config.data.playerHue, Config.data.nametagHue);
 
-            #region Eventhandling
+            #region EventHandler registration
             game.window.Closed += OnWindowClosed;
             game.window.Resized += OnWindowResized;
             #endregion
         }
 
+        #region Window event handling
         private void OnWindowResized(object sender, SizeEventArgs e)
         {
             if (!game.stateMachine.IsCurrent(this))
@@ -277,6 +280,8 @@ namespace Client.States
                 return;
             }
         }
+        #endregion
+
         ~GameState()
         {
 
@@ -371,7 +376,7 @@ namespace Client.States
                             Packet movePacket = new Packet();
                             movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
                             client.Send(movePacket.GetData(), movePacket.GetSize());
-                            packetLogger.Log(movePacket, server, PacketLogMode.Sent, Server.PacketID.Player_Move);
+                            packetLogger.Log(movePacket, server, PacketDirection.Sent, Server.PacketID.Player_Move);
                         }
                         //localPlayer.Move(moveVector);
 
@@ -384,7 +389,7 @@ namespace Client.States
                             Packet rotatePacket = new Packet();
                             rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
                             client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
-                            packetLogger.Log(rotatePacket, server, PacketLogMode.Sent, Server.PacketID.Player_Rotate);
+                            packetLogger.Log(rotatePacket, server, PacketDirection.Sent, Server.PacketID.Player_Rotate);
                         }
                     }
                 }
@@ -437,7 +442,7 @@ namespace Client.States
                         break;
                     // Player join notification packet
                     case (short)Server.PacketID.Player_Join_Notification:
-                        Console.WriteLine($"Received player join notification packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                        packetLogger.Log(receivedPacket, endpoint, PacketDirection.Received, (Server.PacketID)packetID);
                         Guid joinedPlayerGuid = Guid.Empty;
                         string joinedPlayerName = string.Empty;
                         int joinedPlayerHue = 0, joinedPlayerNametagHue = 0;
@@ -448,7 +453,7 @@ namespace Client.States
                         break;
                     // Player leave notification packet
                     case (short)Server.PacketID.Player_Leave_Notification:
-                        Console.WriteLine($"Received player leave notification packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                        packetLogger.Log(receivedPacket, endpoint, PacketDirection.Received, (Server.PacketID)packetID);
                         Guid leavingPlayerGuid = Guid.Empty;
                         receivedPacket.Read(ref packetID).Read(ref leavingPlayerGuid);
 
@@ -465,7 +470,7 @@ namespace Client.States
                     // Status packet
                     case (short)Server.PacketID.Status:
                         int playerCount = -1;
-                        //Console.WriteLine($"Received status packet with ID {packetID} of size {receivedPacket.GetSize()} from {endpoint.Address}:{endpoint.Port}");
+                        packetLogger.Log(receivedPacket, endpoint, PacketDirection.Received, (Server.PacketID)packetID);
                         receivedPacket.Read(ref packetID).Read(ref playerCount);
 
                         for(int i = 0; i < playerCount; i++)
@@ -510,7 +515,7 @@ namespace Client.States
             pingPacket.Append((short)Server.PacketID.Ping);
 
             client.Send(pingPacket.GetData(), pingPacket.GetSize());
-            packetLogger.Log(pingPacket, server, PacketLogMode.Sent, Server.PacketID.Ping);
+            packetLogger.Log(pingPacket, server, PacketDirection.Sent, Server.PacketID.Ping);
             pingTimer.Restart();
             do
             {
@@ -536,7 +541,7 @@ namespace Client.States
             short pingResponsePacketID = -1;
             int timestampOffset = -1;
             pingResponsePacket.Read(ref pingResponsePacketID).Read(ref timestampOffset);
-            packetLogger.Log(pingResponsePacket, endpointOfPingResponse, PacketLogMode.Received, (Server.PacketID)pingResponsePacketID);
+            packetLogger.Log(pingResponsePacket, endpointOfPingResponse, PacketDirection.Received, (Server.PacketID)pingResponsePacketID);
 
             return (ping, timestampOffset);
         }

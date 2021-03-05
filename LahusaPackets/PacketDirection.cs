@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LahusaPackets
 {
-    public enum PacketLogMode
+    public enum PacketDirection
     {
         Neutral = 0,
         Sent = 1,
