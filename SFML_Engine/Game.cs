@@ -49,46 +49,57 @@ namespace SFML_Engine
 
         public void Run(State startingState)
         {
+            // Push starting state
             stateMachine.Add(startingState);
+            Console.CursorVisible = false;
 
+            // Game loop
             while (window.IsOpen)
             {
+                // Calculate deltaTime
                 deltaTime = deltaClock.Restart().AsSeconds();
-                Console.CursorVisible = false;
 
+                // Update cooldown
                 if (cd != 0)
                 {
                     cd = Math.Max(0, cd - deltaTime);
                 }
 
+                // Exit if all states have been closed
                 if (stateMachine.states.Count == 0)
                 {
                     window.Close();
                     return;
                 }
 
+                // Handle window events and trigger callbacks
                 window.DispatchEvents();
 
+                // Handle input in current state and update
                 stateMachine.GetCurrent().Value.HandleInput(deltaTime);
+                stateMachine.GetCurrent().Value.Update(deltaTime);
 
-                for(int i = 0; i < stateMachine.states.Count; i++)
+                // Update all unpaused background states
+                for(int i = 1; i < stateMachine.states.Count; i++)
                 {
                     State state = stateMachine.states.ElementAt(i);
                     if(!state.IsPaused)
                     {
-                        state.Update(deltaTime);
+                        state.BackgroundUpdate(deltaTime);
                     }
                 }
 
-                //Rendering
-                drawDepth = stateMachine.GetDrawDepth();
+                // Clear the buffer
                 window.Clear();
 
+                // Draw all states until an opaque one is hit
+                drawDepth = stateMachine.GetDrawDepth();
                 for (int i = drawDepth - 1; i >= 0; i--)
                 {
                     stateMachine.states.ElementAt(i).Draw(deltaTime);
                 }
 
+                // Swap buffers
                 window.Display();
             }
         }

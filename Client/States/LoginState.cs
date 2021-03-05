@@ -555,5 +555,10 @@ namespace Client.States
             playerPreview.OutlineColor = ColorConversion.HSVtoRGB(hue, PlayerEntity.playerOutlineColorSaturation, PlayerEntity.playerOutlineColorValue);
             playerSystemColor = ColorConversion.SFMLColorToSystemColor(playerPreview.FillColor);
         }
+
+        public override void BackgroundUpdate(float deltaTime)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

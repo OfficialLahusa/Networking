@@ -29,6 +29,8 @@ namespace SFML_Engine
 
         public abstract void Update(float deltaTime);
 
+        public abstract void BackgroundUpdate(float deltaTime);
+
         public abstract void Draw(float deltaTime);
 
     }

@@ -36,6 +36,11 @@ namespace SFML_Engine
             }
         }
 
+        public override void BackgroundUpdate(float deltaTime)
+        {
+            return;
+        }
+
         public override void Draw(float deltaTime)
         {
             game.window.Draw(bg);

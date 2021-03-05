@@ -143,7 +143,7 @@ namespace Client.States
                 var pingResult = GetPing();
                 Console.WriteLine($"Ping: {pingResult.ping}ms, ServerTimestampOffset: {pingResult.timestampOffset}");
                 serverTimestampOffset = pingResult.timestampOffset;
-            } catch(SocketException e)
+            } catch (SocketException)
             {
                 return;
             }
@@ -379,6 +379,11 @@ namespace Client.States
             }
         }
 
+        public override void BackgroundUpdate(float deltaTime)
+        {
+            return;
+        }
+
         public override void Update(float deltaTime)
         {
             if (client.Client == null || (client.Client != null && !client.Client.Connected))
@@ -506,7 +511,7 @@ namespace Client.States
                 {
                     Console.WriteLine("Could not connect to server: " + e.Message);
                     game.stateMachine.ReplaceCurrent(new LoginState(game));
-                    throw e;
+                    throw new SocketException(e.ErrorCode);
                 }
 
             } while (!endpointOfPingResponse.Address.Equals(server.Address) || endpointOfPingResponse.Port != server.Port);
