@@ -18,15 +18,22 @@ namespace Client.States
 {
     public class GameState : State
     {
+        // Rendering
         View view;
-        Guid localPlayerGuid = Guid.Empty;
-        Guid localPlayerToken = Guid.Empty;
         PlayerEntity localPlayer;
         Dictionary<Guid, PlayerEntity> players;
+
+        // Networking
         UdpClient client;
         IPEndPoint server;
+        PacketLogger<Server.PacketID> packetLogger;
         long serverTimestampOffset = 0;
 
+        // Auth
+        Guid localPlayerGuid = Guid.Empty;
+        Guid localPlayerToken = Guid.Empty;
+        
+        // Other
         VectorMap map;
 
         // Player Rotation (Deg)
@@ -34,11 +41,9 @@ namespace Client.States
 
         public GameState(Game game) : base(game)
         {
-            // Load map
-            SvgMapLoader mapLoader = new SvgMapLoader();
-            map = mapLoader.LoadMap("res/map/template player.svg", game.fonts["montserrat"]);
-
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
+            packetLogger = new PacketLogger<Server.PacketID>();
+            packetLogger.Filter = (int)Server.PacketID.Player_Rotate | (int)Server.PacketID.Player_Move;
 
             #region Resources
             // Load Font
@@ -46,6 +51,10 @@ namespace Client.States
             {
                 game.fonts.Add("montserrat", new Font("res/Montserrat-Bold.ttf"));
             }
+
+            // Load map
+            SvgMapLoader mapLoader = new SvgMapLoader();
+            map = mapLoader.LoadMap("res/map/template player.svg", game.fonts["montserrat"]);
             #endregion
 
             Console.WriteLine("Networking Client - (C) Lasse Huber-Saffer, " + DateTime.UtcNow.Year);
@@ -155,7 +164,7 @@ namespace Client.States
             Packet serverInfoRequestPacket = new Packet();
             serverInfoRequestPacket.Append((short)Server.PacketID.Server_Info_Request);
             client.Send(serverInfoRequestPacket.GetData(), serverInfoRequestPacket.GetSize());
-            //Console.WriteLine($"Sent server info request packet with ID {(short)Server.PacketID.Server_Info_Request} of size {serverInfoRequestPacket.GetSize()} to {server.Address}:{server.Port}");
+            packetLogger.Log(serverInfoRequestPacket, server, PacketLogMode.Sent, Server.PacketID.Server_Info_Request);
             
             // Receive server info packet
             short serverInfoPacketID = -1;
@@ -175,7 +184,7 @@ namespace Client.States
             bool isFull = false;
 
             serverInfoPacket.Read(ref serverName).Read(ref tickrate).Read(ref playerCount).Read(ref slotCount).Read(ref isFull);
-            //Console.WriteLine($"Received server info packet with ID {serverInfoPacketID} of size {serverInfoPacket.GetSize()} from {serverInfoEndpoint.Address}:{serverInfoEndpoint.Port}");
+            packetLogger.Log(serverInfoPacket, serverInfoEndpoint, PacketLogMode.Received, (Server.PacketID)serverInfoPacketID);
             Console.WriteLine($"Server Name: \"{serverName}\", tickrate: {tickrate}, slots: ({playerCount}/{slotCount}), full: {isFull}");
             #endregion
             
@@ -353,27 +362,30 @@ namespace Client.States
                 moveVector *= deltaTime;
 
                 // Only send packets if the client is connected to a server
-                if(client.Client != null) if(client.Client.Connected)
+                if(client.Client != null)
                 {
-                    if (moveVector.X != 0 || moveVector.Y != 0)
+                    if(client.Client.Connected)
                     {
-                        Packet movePacket = new Packet();
-                        movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
-                        client.Send(movePacket.GetData(), movePacket.GetSize());
-                        //Console.WriteLine($"Sent player move packet with ID {(short)Server.PacketID.Player_Rotate} of size {movePacket.GetSize()} to {server.Address}:{server.Port}");
-                    }
-                    //localPlayer.Move(moveVector);
+                        if (moveVector.X != 0 || moveVector.Y != 0)
+                        {
+                            Packet movePacket = new Packet();
+                            movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
+                            client.Send(movePacket.GetData(), movePacket.GetSize());
+                            packetLogger.Log(movePacket, server, PacketLogMode.Sent, Server.PacketID.Player_Move);
+                        }
+                        //localPlayer.Move(moveVector);
 
-                    float oldRotation = playerRotation;
-                    Vector2f mousePos = game.window.MapPixelToCoords(Mouse.GetPosition(game.window), view);
-                    playerRotation = (float)Math.Atan2(localPlayer.Position.Y - mousePos.Y, localPlayer.Position.X - mousePos.X) / (float)Math.PI * 180.0f;
+                        float oldRotation = playerRotation;
+                        Vector2f mousePos = game.window.MapPixelToCoords(Mouse.GetPosition(game.window), view);
+                        playerRotation = (float)Math.Atan2(localPlayer.Position.Y - mousePos.Y, localPlayer.Position.X - mousePos.X) / (float)Math.PI * 180.0f;
 
-                    if (playerRotation != oldRotation)
-                    {
-                        Packet rotatePacket = new Packet();
-                        rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
-                        client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
-                        //Console.WriteLine($"Sent player rotate packet with ID {(short)Server.PacketID.Player_Rotate} of size {rotatePacket.GetSize()} to {server.Address}:{server.Port}");
+                        if (playerRotation != oldRotation)
+                        {
+                            Packet rotatePacket = new Packet();
+                            rotatePacket.Append((short)Server.PacketID.Player_Rotate).Append(localPlayerGuid).Append(localPlayerToken).Append(playerRotation);
+                            client.Send(rotatePacket.GetData(), rotatePacket.GetSize());
+                            packetLogger.Log(rotatePacket, server, PacketLogMode.Sent, Server.PacketID.Player_Rotate);
+                        }
                     }
                 }
             }
@@ -498,7 +510,7 @@ namespace Client.States
             pingPacket.Append((short)Server.PacketID.Ping);
 
             client.Send(pingPacket.GetData(), pingPacket.GetSize());
-            //Console.WriteLine($"Sent ping packet with ID {(short)Server.PacketID.Ping} of size {pingPacket.GetSize()} to {server.Address}:{server.Port}");
+            packetLogger.Log(pingPacket, server, PacketLogMode.Sent, Server.PacketID.Ping);
             pingTimer.Restart();
             do
             {
@@ -524,7 +536,7 @@ namespace Client.States
             short pingResponsePacketID = -1;
             int timestampOffset = -1;
             pingResponsePacket.Read(ref pingResponsePacketID).Read(ref timestampOffset);
-            //Console.WriteLine($"Received ping response packet with ID {pingResponsePacketID} of size {pingResponsePacket.GetSize()} from {endpointOfPingResponse.Address}:{endpointOfPingResponse.Port}");
+            packetLogger.Log(pingResponsePacket, endpointOfPingResponse, PacketLogMode.Received, (Server.PacketID)pingResponsePacketID);
 
             return (ping, timestampOffset);
         }
