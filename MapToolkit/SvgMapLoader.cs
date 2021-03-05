@@ -157,14 +157,6 @@ namespace MapToolkit
                 }
             } else
             {
-                // Assume it's convex
-                for (int i = 1; i < vertices.Count - 1; i++)
-                {
-                    map.DrawLayer.Append(vertices[0]);
-                    map.DrawLayer.Append(vertices[i]);
-                    map.DrawLayer.Append(vertices[i + 1]);
-                }
-
                 // Calculate path center position
                 Vector2f center = new Vector2f(0, 0);
                 foreach (Vertex vertex in vertices)
@@ -243,13 +235,15 @@ namespace MapToolkit
                     }
                     #endregion
 
+                    #region VertexIDText
 #if DEBUG
-                    Text debugText = new Text(i.ToString(), font, 12)
+                    /*Text debugText = new Text(i.ToString(), font, 12)
                     {
                         Position = current.Position + new Vector2f(8, 0)
                     };
-                    map.DebugText.Add(debugText);
+                    map.DebugText.Add(debugText);*/
 #endif
+                    #endregion
 
                     Vector2f first = current.Position - previous.Position;
                     first /= MathF.Sqrt(first.X * first.X + first.Y * first.Y);
@@ -263,6 +257,7 @@ namespace MapToolkit
                     if (!convex) containsConcaveVertices = true;
 
                     #region Vertex marker
+                    /*           
 #if DEBUG
                     // Draw vertex marker in angle sign color
                     Color markerColor = (convex) ? Color.Blue : Color.Red;
@@ -274,10 +269,12 @@ namespace MapToolkit
                     map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(-markerDist, markerDist), markerColor));
                     map.DrawLayer.Append(new Vertex(current.Position + new Vector2f(markerDist, markerDist), markerColor));
 #endif
+                    */
                     #endregion
                 }
 
                 #region Center marker
+                /*
 #if DEBUG
                 // Draw center marker in winding order color
                 Color centerColor = (!containsConcaveVertices) ? Color.Blue : Color.Red;
@@ -289,7 +286,28 @@ namespace MapToolkit
                 map.DrawLayer.Append(new Vertex(center + new Vector2f(-centerDist, centerDist), centerColor));
                 map.DrawLayer.Append(new Vertex(center + new Vector2f(centerDist, centerDist), centerColor));
 #endif
+                */
                 #endregion
+
+                // Concave
+                if(containsConcaveVertices)
+                {
+                    PolygonTriangulator triangulator = new PolygonTriangulator();
+                    foreach(Vertex vertex in triangulator.TriangulatePolygon(vertices))
+                    {
+                        map.DrawLayer.Append(vertex);
+                    }
+                }
+                // Convex
+                else
+                {
+                    for (int i = 1; i < vertices.Count - 1; i++)
+                    {
+                        map.DrawLayer.Append(vertices[0]);
+                        map.DrawLayer.Append(vertices[i]);
+                        map.DrawLayer.Append(vertices[i + 1]);
+                    }
+                }
             }
             return;
         }
