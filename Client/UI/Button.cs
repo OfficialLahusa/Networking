@@ -17,13 +17,17 @@ namespace Client.UI
 
         public Button(string content, Font font, uint characterSize, Vector2f position, Color normalColor, Color selectedColor)
         {
-            text = new Text(content, font, characterSize);
-            text.FillColor = normalColor;
+            text = new Text(content, font, characterSize)
+            {
+                FillColor = normalColor
+            };
             float horizontalMargin = text.CharacterSize * 0.4f;
-            box = new RectangleShape(new Vector2f(text.GetGlobalBounds().Width + horizontalMargin, text.CharacterSize * 1.3f));
-            box.FillColor = Color.Transparent;
-            box.OutlineColor = normalColor;
-            box.OutlineThickness = 2;
+            box = new RectangleShape(new Vector2f(text.GetGlobalBounds().Width + horizontalMargin, text.CharacterSize * 1.3f))
+            {
+                FillColor = Color.Transparent,
+                OutlineColor = normalColor,
+                OutlineThickness = 2
+            };
 
             box.Origin = box.Size / 2;
             text.Origin = box.Origin - new Vector2f(horizontalMargin / 3.0f, 0.0f);

@@ -39,7 +39,7 @@ namespace MapToolkit
             return map;
         }
 
-        private Color HexStringToColor(string hex)
+        private static Color HexStringToColor(string hex)
         {
             string rHex = hex.Substring(0, 2);
             string gHex = hex.Substring(2, 2);
@@ -47,7 +47,7 @@ namespace MapToolkit
             return new Color(Convert.ToByte(rHex, 16), Convert.ToByte(gHex, 16), Convert.ToByte(bHex, 16));
         }
 
-        private Transform EvaluateTransform(XElement element) 
+        private static Transform EvaluateTransform(XElement element) 
         {
             Transform transform = Transform.Identity;
 
@@ -177,7 +177,7 @@ namespace MapToolkit
 
                 if(i == 0)
                 {
-                    previous = vertices[vertices.Count - 1];
+                    previous = vertices[^1];
                 } else
                 {
                     previous = vertices[i - 1];
@@ -201,8 +201,10 @@ namespace MapToolkit
                 float angle = MathF.Atan2(first.X * second.Y - first.Y * second.X, first.X * second.X + first.Y * second.Y) / MathF.PI * 180.0f;
 #if DEBUG
                 Console.WriteLine($"[{i}] Angle: {angle}");
-                Text debugText = new Text(i.ToString(), font, 12);
-                debugText.Position = current.Position + new Vector2f(8, 0);
+                Text debugText = new Text(i.ToString(), font, 12)
+                {
+                    Position = current.Position + new Vector2f(8, 0)
+                };
                 map.DebugText.Add(debugText);
 
                 Color markerColor = (angle > 0) ? Color.Blue : Color.Red;

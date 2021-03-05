@@ -29,7 +29,6 @@ namespace Client.States
         Color defaultColor = Color.White;
         Color highlightedColor = Color.Yellow;
         Texture colorPickerTexture;
-        Texture brightnessPickerTexture;
 
         // Texts
         Text title;
@@ -75,58 +74,75 @@ namespace Client.States
             }
 
 
-            // ColorPicker & BrightnessPicker Textures
+            // ColorPicker texture
             colorPickerTexture = new Texture("res/colorpicker.png");
-            brightnessPickerTexture = new Texture("res/brightnesspicker.png");
             #endregion
 
             #region Texts
             // Screen title
-            title = new Text("Networking Test", game.fonts["montserrat"], 42);
-            title.Position = new Vector2f(16, 16);
-            title.FillColor = defaultColor;
+            title = new Text("Networking Test", game.fonts["montserrat"], 42)
+            {
+                Position = new Vector2f(16, 16),
+                FillColor = defaultColor
+            };
 
             // Player name label
-            playerNameLabel = new Text("Name:", game.fonts["montserrat"], 32);
-            playerNameLabel.Position = new Vector2f(16, 96);
-            playerNameLabel.FillColor = defaultColor;
+            playerNameLabel = new Text("Name:", game.fonts["montserrat"], 32)
+            {
+                Position = new Vector2f(16, 96),
+                FillColor = defaultColor
+            };
 
             // Nametag color label
-            nametagColorLabel = new Text("Nametag:", game.fonts["montserrat"], 32);
-            nametagColorLabel.Position = new Vector2f(16, playerNameLabel.Position.Y + playerNameLabel.CharacterSize + 16);
-            nametagColorLabel.FillColor = defaultColor;
+            nametagColorLabel = new Text("Nametag:", game.fonts["montserrat"], 32)
+            {
+                Position = new Vector2f(16, playerNameLabel.Position.Y + playerNameLabel.CharacterSize + 16),
+                FillColor = defaultColor
+            };
 
             // Player color label
-            playerColorLabel = new Text("Player:", game.fonts["montserrat"], 32);
-            playerColorLabel.Position = new Vector2f(16, nametagColorLabel.Position.Y + nametagColorLabel.CharacterSize + 16);
-            playerColorLabel.FillColor = defaultColor;
+            playerColorLabel = new Text("Player:", game.fonts["montserrat"], 32)
+            {
+                Position = new Vector2f(16, nametagColorLabel.Position.Y + nametagColorLabel.CharacterSize + 16),
+                FillColor = defaultColor
+            };
 
             // Hostname label
-            hostnameLabel = new Text("Host:", game.fonts["montserrat"], 32);
-            hostnameLabel.Position = new Vector2f(16, playerColorLabel.Position.Y + 2 * playerColorLabel.CharacterSize + 16);
-            hostnameLabel.FillColor = defaultColor;
+            hostnameLabel = new Text("Host:", game.fonts["montserrat"], 32)
+            {
+                Position = new Vector2f(16, playerColorLabel.Position.Y + 2 * playerColorLabel.CharacterSize + 16),
+                FillColor = defaultColor
+            };
 
             // Port label
-            portLabel = new Text("Port:", game.fonts["montserrat"], 32);
-            portLabel.Position = new Vector2f(16, hostnameLabel.Position.Y + hostnameLabel.CharacterSize + 16);
-            portLabel.FillColor = defaultColor;
+            portLabel = new Text("Port:", game.fonts["montserrat"], 32)
+            {
+                Position = new Vector2f(16, hostnameLabel.Position.Y + hostnameLabel.CharacterSize + 16),
+                FillColor = defaultColor
+            };
             #endregion
 
             #region InputFields
             // Player name input
-            playerNameInput = new Text(Config.data.name, game.fonts["montserrat"], 32);
-            playerNameInput.Position = playerNameLabel.Position + new Vector2f(playerNameLabel.GetLocalBounds().Width + 16, 0);
-            playerNameInput.FillColor = defaultColor;
+            playerNameInput = new Text(Config.data.name, game.fonts["montserrat"], 32)
+            {
+                Position = playerNameLabel.Position + new Vector2f(playerNameLabel.GetLocalBounds().Width + 16, 0),
+                FillColor = defaultColor
+            };
 
             // Hostname input
-            hostnameInput = new Text(Config.data.hostname, game.fonts["montserrat"], 32);
-            hostnameInput.Position = hostnameLabel.Position + new Vector2f(hostnameLabel.GetLocalBounds().Width + 16, 0);
-            hostnameInput.FillColor = defaultColor;
+            hostnameInput = new Text(Config.data.hostname, game.fonts["montserrat"], 32)
+            {
+                Position = hostnameLabel.Position + new Vector2f(hostnameLabel.GetLocalBounds().Width + 16, 0),
+                FillColor = defaultColor
+            };
 
             // Port input
-            portInput = new Text(Config.data.port.ToString(), game.fonts["montserrat"], 32);
-            portInput.Position = portLabel.Position + new Vector2f(portLabel.GetLocalBounds().Width + 16, 0);
-            portInput.FillColor = defaultColor;
+            portInput = new Text(Config.data.port.ToString(), game.fonts["montserrat"], 32)
+            {
+                Position = portLabel.Position + new Vector2f(portLabel.GetLocalBounds().Width + 16, 0),
+                FillColor = defaultColor
+            };
             #endregion
 
             #region Separator line
@@ -183,11 +199,6 @@ namespace Client.States
             game.window.MouseButtonReleased += HandleMouseButtonUp;
             game.window.MouseMoved += HandleMouseMoved;
             #endregion
-        }
-
-        ~LoginState()
-        {
-
         }
 
         private void HandleTextInput(object sender, TextEventArgs e)
@@ -517,7 +528,7 @@ namespace Client.States
                     case InputState.Port:
                         inputState = InputState.None;
                         portInput.FillColor = defaultColor;
-                        short.TryParse(portInput.DisplayedString.Trim(), out Config.data.port);
+                        _ = short.TryParse(portInput.DisplayedString.Trim(), out Config.data.port);
                         break;
                     case InputState.NametagColor:
                         inputState = InputState.None;

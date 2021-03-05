@@ -13,7 +13,6 @@ namespace Client
         private CircleShape entity;
         private CircleShape leftHand;
         private CircleShape rightHand;
-        private Font font;
         private Text nametag;
 
         private const float entityRadius = 45;
@@ -74,7 +73,6 @@ namespace Client
             entity = new CircleShape(entityRadius);
             leftHand = new CircleShape(handRadius);
             rightHand = new CircleShape(handRadius);
-            this.font = font;
             nametag = new Text(name, font);
 
             SetColorFromHue(playerHue);

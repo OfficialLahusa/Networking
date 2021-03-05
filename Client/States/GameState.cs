@@ -42,10 +42,12 @@ namespace Client.States
         public GameState(Game game) : base(game)
         {
             view = new View((Vector2f)game.window.Size / 2, (Vector2f)game.window.Size);
-            packetLogger = new PacketLogger<Server.PacketID>();
-            packetLogger.FilterMode = FilterMode.Whitelist;
-            packetLogger.Filter = null;
-            packetLogger.PacketDirectionFilter = PacketDirection.Neutral;
+            packetLogger = new PacketLogger<Server.PacketID>
+            {
+                FilterMode = FilterMode.Whitelist,
+                Filter = null,
+                PacketDirectionFilter = PacketDirection.Neutral
+            };
 
             #region Resources
             // Load Font
@@ -65,8 +67,7 @@ namespace Client.States
             Console.WriteLine($"Connecting to {Config.data.hostname}:{Config.data.port}");
 
             // Determine IP
-            IPAddress address;
-            if (!IPAddress.TryParse(Config.data.hostname, out address))
+            if (!IPAddress.TryParse(Config.data.hostname, out IPAddress address))
             {
                 IPAddress[] registeredAddresses = Dns.GetHostEntry(Config.data.hostname).AddressList;
                 address = registeredAddresses[0];
@@ -79,7 +80,7 @@ namespace Client.States
                     }
                 }
             }
-           
+
             server = new IPEndPoint(address, Config.data.port);
 
             #region Manual hostname & port input in console (disabled)
@@ -151,9 +152,9 @@ namespace Client.States
             // Get ping
             try
             {
-                var pingResult = GetPing();
-                Console.WriteLine($"Ping: {pingResult.ping}ms, ServerTimestampOffset: {pingResult.timestampOffset}");
-                serverTimestampOffset = pingResult.timestampOffset;
+                var (ping, timestampOffset) = GetPing();
+                Console.WriteLine($"Ping: {ping}ms, ServerTimestampOffset: {timestampOffset}");
+                serverTimestampOffset = timestampOffset;
             } catch (SocketException)
             {
                 return;
@@ -281,11 +282,6 @@ namespace Client.States
             }
         }
         #endregion
-
-        ~GameState()
-        {
-
-        }
 
         public override bool IsOpaque
         {
@@ -508,7 +504,7 @@ namespace Client.States
             //Ping measurement
             Stopwatch pingTimer = new Stopwatch();
             IPEndPoint endpointOfPingResponse = new IPEndPoint(IPAddress.Any, 0);
-            byte[] rawPingResponsePacket = null;
+            byte[] rawPingResponsePacket;
 
             // Send ping packet to server
             Packet pingPacket = new Packet();

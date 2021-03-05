@@ -51,7 +51,7 @@ namespace LahusaPackets
             return this;
         }
 
-        private bool checkSize(int size)
+        private bool CheckSize(int size)
         {
             return data.Count - ReadPos >= size;
         }
@@ -65,7 +65,7 @@ namespace LahusaPackets
 
         public Packet Read(ref byte[] data)
         {
-            if (checkSize(data.Length))
+            if (CheckSize(data.Length))
             {
                 this.data.CopyTo(ReadPos, data, 0, data.Length);
                 ReadPos += data.Length;
@@ -83,7 +83,7 @@ namespace LahusaPackets
 
         public Packet Read(ref Guid data)
         {
-            if (checkSize(16))
+            if (CheckSize(16))
             {
                 byte[] bytes = new byte[16];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -104,7 +104,7 @@ namespace LahusaPackets
 
         public Packet Read(ref Int16 data)
         {
-            if (checkSize(sizeof(Int16)))
+            if (CheckSize(sizeof(Int16)))
             {
                 byte[] bytes = new byte[sizeof(Int16)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -125,7 +125,7 @@ namespace LahusaPackets
 
         public Packet Read(ref Int32 data)
         {
-            if (checkSize(sizeof(Int32)))
+            if (CheckSize(sizeof(Int32)))
             {
                 byte[] bytes = new byte[sizeof(Int32)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -146,7 +146,7 @@ namespace LahusaPackets
 
         public Packet Read(ref Int64 data)
         {
-            if (checkSize(sizeof(Int64)))
+            if (CheckSize(sizeof(Int64)))
             {
                 byte[] bytes = new byte[sizeof(Int64)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -167,7 +167,7 @@ namespace LahusaPackets
 
         public Packet Read(ref UInt16 data)
         {
-            if (checkSize(sizeof(UInt16)))
+            if (CheckSize(sizeof(UInt16)))
             {
                 byte[] bytes = new byte[sizeof(UInt16)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -188,7 +188,7 @@ namespace LahusaPackets
 
         public Packet Read(ref UInt32 data)
         {
-            if (checkSize(sizeof(UInt32)))
+            if (CheckSize(sizeof(UInt32)))
             {
                 byte[] bytes = new byte[sizeof(UInt32)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -209,7 +209,7 @@ namespace LahusaPackets
 
         public Packet Read(ref UInt64 data)
         {
-            if (checkSize(sizeof(UInt64)))
+            if (CheckSize(sizeof(UInt64)))
             {
                 byte[] bytes = new byte[sizeof(UInt64)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -230,7 +230,7 @@ namespace LahusaPackets
 
         public Packet Read(ref float data)
         {
-            if (checkSize(sizeof(float)))
+            if (CheckSize(sizeof(float)))
             {
                 byte[] bytes = new byte[sizeof(float)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -251,7 +251,7 @@ namespace LahusaPackets
 
         public Packet Read(ref double data)
         {
-            if (checkSize(sizeof(double)))
+            if (CheckSize(sizeof(double)))
             {
                 byte[] bytes = new byte[sizeof(double)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -272,7 +272,7 @@ namespace LahusaPackets
 
         public Packet Read(ref bool data)
         {
-            if (checkSize(sizeof(bool)))
+            if (CheckSize(sizeof(bool)))
             {
                 byte[] bytes = new byte[sizeof(bool)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -293,7 +293,7 @@ namespace LahusaPackets
 
         public Packet Read(ref char data)
         {
-            if (checkSize(sizeof(char)))
+            if (CheckSize(sizeof(char)))
             {
                 byte[] bytes = new byte[sizeof(char)];
                 this.data.CopyTo(ReadPos, bytes, 0, bytes.Length);
@@ -321,7 +321,7 @@ namespace LahusaPackets
             uint length = 0;
             Read(ref length);
 
-            if (checkSize((int)length))
+            if (CheckSize((int)length))
             {
                 byte[] bytes = new byte[length];
                 this.data.CopyTo(ReadPos, bytes, 0, (int)length);

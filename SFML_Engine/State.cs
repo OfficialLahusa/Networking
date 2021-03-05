@@ -20,11 +20,6 @@ namespace SFML_Engine
             this.game = game;
         }
 
-        ~State()
-        {
-
-        }
-
         public abstract void HandleInput(float deltaTime);
 
         public abstract void Update(float deltaTime);

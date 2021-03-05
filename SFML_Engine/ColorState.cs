@@ -17,11 +17,6 @@ namespace SFML_Engine
             this.color = color;
         }
 
-        ~ColorState()
-        {
-
-        }
-
         public override bool IsOpaque
         {
             get

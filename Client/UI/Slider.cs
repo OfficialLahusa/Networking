@@ -13,11 +13,13 @@ namespace Client.UI
 
         public Slider(Vector2f position, Vector2f size, float sliderWidth, Color normalColor, Color selectedColor, Texture texture = null)
         {
-            bar = new RectangleShape(size);
-            bar.Texture = texture;
-            bar.Position = position;
-            bar.OutlineColor = normalColor;
-            bar.OutlineThickness = 2;
+            bar = new RectangleShape(size)
+            {
+                Texture = texture,
+                Position = position,
+                OutlineColor = normalColor,
+                OutlineThickness = 2
+            };
 
             slider = new RectangleShape(new Vector2f(sliderWidth, size.Y + bar.OutlineThickness * 2));
             slider.Origin = slider.Size / 2;

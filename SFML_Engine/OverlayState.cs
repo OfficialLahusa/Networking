@@ -16,16 +16,15 @@ namespace SFML_Engine
 
         public OverlayState(Game game) : base(game)
         {
-            bg = new RectangleShape(new Vector2f(game.window.Size.X, game.window.Size.Y));
-            bg.FillColor = new Color(0, 0, 0, 50);
-            box = new RectangleShape(new Vector2f(game.window.Size.X / 3, game.window.Size.Y / 3));
-            box.Position = new Vector2f(game.window.Size.X / 6 + (float)game.random.NextDouble() * game.window.Size.X / 3, game.window.Size.X / 6 + (float)game.random.NextDouble() * game.window.Size.X / 3);
-            box.FillColor = Color.Green;
-        }
-
-        ~OverlayState()
-        {
-
+            bg = new RectangleShape(new Vector2f(game.window.Size.X, game.window.Size.Y))
+            {
+                FillColor = new Color(0, 0, 0, 50)
+            };
+            box = new RectangleShape(new Vector2f(game.window.Size.X / 3, game.window.Size.Y / 3))
+            {
+                Position = new Vector2f(game.window.Size.X / 6 + (float)game.random.NextDouble() * game.window.Size.X / 3, game.window.Size.X / 6 + (float)game.random.NextDouble() * game.window.Size.X / 3),
+                FillColor = Color.Green
+            };
         }
 
         public override bool IsOpaque
