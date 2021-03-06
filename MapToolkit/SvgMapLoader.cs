@@ -5,6 +5,7 @@ using System.Linq;
 using SFML.System;
 using SFML.Graphics;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace MapToolkit
 {
@@ -51,6 +52,82 @@ namespace MapToolkit
         {
             Transform transform = Transform.Identity;
 
+            XAttribute transformAttrib = element.Attribute("transform");
+            if(transformAttrib == null)
+            {
+                return transform;
+            }
+
+            string transformString = transformAttrib.Value;
+
+            if (transformString.Length == 0)
+            {
+                return transform;
+            }
+
+            transformString = transformString.Replace(") ", ")|");
+            string[] transformSteps = transformString.Split('|');
+
+            foreach(string transformStep in transformSteps) {
+                string[] transformStepParts = transformStep.Split('(');
+
+                if(transformStepParts.Length != 2)
+                {
+                    return transform;
+                }
+
+                string transformVerb = transformStepParts[0];
+                string transformValuesString = transformStepParts[1].Substring(0, transformStepParts[1].Length - 1);
+
+                string[] valuesString;
+                if (transformValuesString.IndexOf(',') != -1)
+                {
+                    valuesString = transformValuesString.Split(',');
+                } else
+                {
+                    valuesString = transformValuesString.Split(' ');
+                }
+                
+                float[] values = new float[valuesString.Length];
+
+                CultureInfo cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+                cultureInfo.NumberFormat.CurrencyDecimalSeparator = ".";
+                for(int i = 0; i < valuesString.Length; i++)
+                {
+                    values[i] = float.Parse(valuesString[i], System.Globalization.NumberStyles.Any, cultureInfo);
+                }
+
+                switch(transformVerb)
+                {
+                    default: 
+                        break;
+                    case "translate":
+                        transform.Translate(values[0], values[1]);
+                        Console.WriteLine("Translated by " + values[0] + "," + values[1]);
+                        break;
+                    case "scale":
+                        transform.Scale(values[0], values[1]);
+                        break;
+                    case "rotate":
+                        if(values.Length == 1)
+                        {
+                            transform.Rotate(values[0]);
+                            Console.WriteLine("Rotated by " + values[0] + "°");
+                        }
+                        else if(values.Length == 3)
+                        {
+                            transform.Rotate(values[0], values[1], values[2]);
+                            Console.WriteLine("Rotated by " + values[0] + "° around " + values[1] + "," + values[2]);
+                        }
+                        break;
+                    case "matrix":
+                        transform.Combine(new Transform(values[0], values[1], 0, values[2], values[3], 0, values[4], values[5], 1));
+                        break;
+                }
+
+                Console.WriteLine(transform.ToString());
+            }
+
             return transform;
         }
 
@@ -58,10 +135,11 @@ namespace MapToolkit
         {
             //Console.WriteLine($"Node: {node.Name.LocalName}\n{node}");
             Vector2f startingPos = new Vector2f(0, 0);
-            Transform transform = parentTransform * EvaluateTransform(node);
+            Transform transform = parentTransform;
+            transform.Combine(EvaluateTransform(node));
 
             var childNodes =
-                from childNode in node.Descendants()
+                from childNode in node.Elements()
                 where childNode.Name.LocalName is "rect" or "path" or "g"
                 select childNode;
 
@@ -86,10 +164,12 @@ namespace MapToolkit
 
         private void HandlePath(XElement node, ref VectorMap map, Transform parentTransform, Font font)
         {
-            Console.WriteLine(node);
-
+            //Console.WriteLine(node);
             // Read transform
             Transform transform = parentTransform * EvaluateTransform(node);
+
+            CultureInfo cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+            cultureInfo.NumberFormat.CurrencyDecimalSeparator = ".";
 
             #region Style data
             // Read fill color from style attribute, if existing
@@ -140,7 +220,7 @@ namespace MapToolkit
             for (int i = 0; i < pathSegments.Length; i++)
             {
                 // Handle svg path commands
-                HandlePathCommand(pathSegments[i], transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
+                HandlePathCommand(pathSegments[i], transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor, cultureInfo);
             }
             #endregion
 
@@ -312,7 +392,7 @@ namespace MapToolkit
             return;
         }
 
-        private void HandlePathCommand(string command, Transform transform, ref int i, string[] pathSegments, ref List<Vertex> vertices, ref Vector2f currentPos, ref bool hasDoneFirstMove, ref string lastCommand, Color fillColor)
+        private void HandlePathCommand(string command, Transform transform, ref int i, string[] pathSegments, ref List<Vertex> vertices, ref Vector2f currentPos, ref bool hasDoneFirstMove, ref string lastCommand, Color fillColor, CultureInfo cultureInfo)
         {
             switch (command)
             {
@@ -321,7 +401,7 @@ namespace MapToolkit
                     if(command != string.Empty)
                     {
                         i -= 1;
-                        HandlePathCommand(lastCommand, transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor);
+                        HandlePathCommand(lastCommand, transform, ref i, pathSegments, ref vertices, ref currentPos, ref hasDoneFirstMove, ref lastCommand, fillColor, cultureInfo);
                     }
                     break;
                 // Absolute move
@@ -331,8 +411,8 @@ namespace MapToolkit
                         if (!hasDoneFirstMove)
                         {
                             // Move
-                            float x = float.Parse(pathSegments[i + 1]);
-                            float y = float.Parse(pathSegments[i + 2]);
+                            float x = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                            float y = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                             currentPos = new Vector2f(x, y);
                             i += 2;
                             hasDoneFirstMove = true;
@@ -340,8 +420,8 @@ namespace MapToolkit
                         else
                         {
                             // Draw line
-                            float x = float.Parse(pathSegments[i + 1]);
-                            float y = float.Parse(pathSegments[i + 2]);
+                            float x = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                            float y = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                             Vector2f lineEnd = new Vector2f(x, y);
                             if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                             vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -357,8 +437,8 @@ namespace MapToolkit
                         if (!hasDoneFirstMove)
                         {
                             // Move
-                            float dx = float.Parse(pathSegments[i + 1]);
-                            float dy = float.Parse(pathSegments[i + 2]);
+                            float dx = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                            float dy = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                             currentPos += new Vector2f(dx, dy);
                             i += 2;
                             hasDoneFirstMove = true;
@@ -366,8 +446,8 @@ namespace MapToolkit
                         else
                         {
                             // Draw line
-                            float dx = float.Parse(pathSegments[i + 1]);
-                            float dy = float.Parse(pathSegments[i + 2]);
+                            float dx = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                            float dy = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                             Vector2f lineEnd = currentPos + new Vector2f(dx, dy);
                             if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                             vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -381,8 +461,8 @@ namespace MapToolkit
                 case "L":
                     {
                         lastCommand = "L";
-                        float x = float.Parse(pathSegments[i + 1]);
-                        float y = float.Parse(pathSegments[i + 2]);
+                        float x = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                        float y = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = new Vector2f(x, y);
                         if(vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -394,8 +474,8 @@ namespace MapToolkit
                 case "l":
                     {
                         lastCommand = "l";
-                        float dx = float.Parse(pathSegments[i + 1]);
-                        float dy = float.Parse(pathSegments[i + 2]);
+                        float dx = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
+                        float dy = float.Parse(pathSegments[i + 2], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = currentPos + new Vector2f(dx, dy);
                         if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -407,7 +487,7 @@ namespace MapToolkit
                 case "H":
                     {
                         lastCommand = "H";
-                        float x = float.Parse(pathSegments[i + 1]);
+                        float x = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = new Vector2f(x, currentPos.Y);
                         if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -419,7 +499,7 @@ namespace MapToolkit
                 case "h":
                     {
                         lastCommand = "h";
-                        float dx = float.Parse(pathSegments[i + 1]);
+                        float dx = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = new Vector2f(currentPos.X + dx, currentPos.Y);
                         if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -431,7 +511,7 @@ namespace MapToolkit
                 case "V":
                     {
                         lastCommand = "V";
-                        float y = float.Parse(pathSegments[i + 1]);
+                        float y = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = new Vector2f(currentPos.X, y);
                         if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -443,7 +523,7 @@ namespace MapToolkit
                 case "v":
                     {
                         lastCommand = "v";
-                        float dy = float.Parse(pathSegments[i + 1]);
+                        float dy = float.Parse(pathSegments[i + 1], System.Globalization.NumberStyles.Any, cultureInfo);
                         Vector2f lineEnd = new Vector2f(currentPos.X, currentPos.Y + dy);
                         if (vertices.Count == 0) vertices.Add(new Vertex(transform.TransformPoint(currentPos), fillColor));
                         vertices.Add(new Vertex(transform.TransformPoint(lineEnd), fillColor));
@@ -469,7 +549,8 @@ namespace MapToolkit
         {
             //Console.WriteLine(node);
             // Read transform
-            Transform transform = parentTransform * EvaluateTransform(node);
+            Transform transform = parentTransform;
+            transform.Combine(EvaluateTransform(node));
 
             float x, y, width, height;
             x = y = width = height = 0;
@@ -477,21 +558,24 @@ namespace MapToolkit
             string style = string.Empty;
             Color fillColor = Color.Magenta;
 
+            CultureInfo cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+            cultureInfo.NumberFormat.CurrencyDecimalSeparator = ".";
+
             if (node.Attribute("x") != null)
             {
-                x = float.Parse(node.Attribute("x").Value);
+                x = float.Parse(node.Attribute("x").Value, System.Globalization.NumberStyles.Any, cultureInfo);
             }
             if (node.Attribute("y") != null)
             {
-                y = float.Parse(node.Attribute("y").Value);
+                y = float.Parse(node.Attribute("y").Value, System.Globalization.NumberStyles.Any, cultureInfo);
             }
             if (node.Attribute("width") != null)
             {
-                width = float.Parse(node.Attribute("width").Value);
+                width = float.Parse(node.Attribute("width").Value, System.Globalization.NumberStyles.Any, cultureInfo);
             }
             if (node.Attribute("height") != null)
             {
-                height = float.Parse(node.Attribute("height").Value);
+                height = float.Parse(node.Attribute("height").Value, System.Globalization.NumberStyles.Any, cultureInfo);
             }
             if (node.Attribute("style") != null)
             {
@@ -506,6 +590,10 @@ namespace MapToolkit
                 }
             }
 
+            Console.WriteLine($"Before: {x},{y}; After: {transform.TransformPoint(new Vector2f(x, y)).X},{transform.TransformPoint(new Vector2f(x, y)).Y}");
+            Console.WriteLine($"Before: {x + width},{y}; After: {transform.TransformPoint(new Vector2f(x + width, y)).X},{transform.TransformPoint(new Vector2f(x + width, y)).Y}");
+            Console.WriteLine($"Before: {x},{y + height}; After: {transform.TransformPoint(new Vector2f(x, y + height)).X},{transform.TransformPoint(new Vector2f(x, y + height)).Y}");
+            Console.WriteLine($"Before: {x + width},{y + height}; After: {transform.TransformPoint(new Vector2f(x + width, y + height)).X},{transform.TransformPoint(new Vector2f(x + width, y + height)).Y}");
             Vertex topLeft      = new Vertex(transform.TransformPoint(new Vector2f(x, y)),                      fillColor);
             Vertex topRight     = new Vertex(transform.TransformPoint(new Vector2f(x + width, y)),              fillColor);
             Vertex bottomLeft   = new Vertex(transform.TransformPoint(new Vector2f(x, y + height)),             fillColor);

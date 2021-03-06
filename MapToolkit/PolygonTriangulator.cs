@@ -49,7 +49,6 @@ namespace MapToolkit
                 triangles.Add(current);
                 triangles.Add(next);
                 inputVertices.RemoveAt(index);
-                Console.WriteLine("Removed at " + index);
             }
 
             return triangles;
@@ -69,8 +68,6 @@ namespace MapToolkit
                     if (previous < 0) previous = inputVertices.Count - 1;
                     if (next > inputVertices.Count - 1) next = 0;
 
-                    Console.WriteLine($"Convex at {i} ({previous}, {next}");
-
                     bool containsConcave = false;
                     for(int j = 0; j < inputVertices.Count; j++)
                     {
@@ -89,15 +86,8 @@ namespace MapToolkit
 
                     if(!containsConcave)
                     {
-                        Console.WriteLine("Found ear at " + i);
                         return i;
-                    } else
-                    {
-                        Console.WriteLine("Triangle at " + i + " contains concave vertex");
                     }
-                } else
-                {
-                    Console.WriteLine("Concave at " + i);
                 }
             }
 
