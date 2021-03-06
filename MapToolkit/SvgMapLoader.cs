@@ -589,11 +589,6 @@ namespace MapToolkit
                     fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6));
                 }
             }
-
-            Console.WriteLine($"Before: {x},{y}; After: {transform.TransformPoint(new Vector2f(x, y)).X},{transform.TransformPoint(new Vector2f(x, y)).Y}");
-            Console.WriteLine($"Before: {x + width},{y}; After: {transform.TransformPoint(new Vector2f(x + width, y)).X},{transform.TransformPoint(new Vector2f(x + width, y)).Y}");
-            Console.WriteLine($"Before: {x},{y + height}; After: {transform.TransformPoint(new Vector2f(x, y + height)).X},{transform.TransformPoint(new Vector2f(x, y + height)).Y}");
-            Console.WriteLine($"Before: {x + width},{y + height}; After: {transform.TransformPoint(new Vector2f(x + width, y + height)).X},{transform.TransformPoint(new Vector2f(x + width, y + height)).Y}");
             Vertex topLeft      = new Vertex(transform.TransformPoint(new Vector2f(x, y)),                      fillColor);
             Vertex topRight     = new Vertex(transform.TransformPoint(new Vector2f(x + width, y)),              fillColor);
             Vertex bottomLeft   = new Vertex(transform.TransformPoint(new Vector2f(x, y + height)),             fillColor);
