@@ -20,6 +20,7 @@ namespace Client.States
     {
         // Rendering
         View view;
+        float zoomFac = 1.0f;
         PlayerEntity localPlayer;
         Dictionary<Guid, PlayerEntity> players;
 
@@ -58,7 +59,7 @@ namespace Client.States
 
             // Load map
             SvgMapLoader mapLoader = new SvgMapLoader();
-            map = mapLoader.LoadMap("res/map/template player.svg", game.fonts["montserrat"]);
+            map = mapLoader.LoadMap("res/map/de_dust2.svg", game.fonts["montserrat"]);
             #endregion
 
             Console.WriteLine("Networking Client - (C) Lasse Huber-Saffer, " + DateTime.UtcNow.Year);
@@ -249,6 +250,7 @@ namespace Client.States
             #region EventHandler registration
             game.window.Closed += OnWindowClosed;
             game.window.Resized += OnWindowResized;
+            game.window.MouseWheelScrolled += OnMouseWheelScrolled;
             #endregion
         }
 
@@ -281,6 +283,11 @@ namespace Client.States
                 return;
             }
         }
+
+        private void OnMouseWheelScrolled(object sender, MouseWheelScrollEventArgs e)
+        {
+            zoomFac += 0.1f * (-e.Delta);
+        }
         #endregion
 
         public override bool IsOpaque
@@ -296,8 +303,15 @@ namespace Client.States
             if (client.Client == null) return;
             if (!client.Client.Connected) return;
 
-            // Clear to background color
-            game.window.Clear(new Color(50, 200, 65));
+            // Clear to map background color if there is one, otherwise use default background color
+            if(map.BackgroundColor != null)
+            {
+                game.window.Clear(map.BackgroundColor.Value);
+            } else
+            {
+                game.window.Clear(new Color(50, 200, 65));
+            }
+
 
             // Set view to player view
             game.window.SetView(view);
@@ -408,6 +422,7 @@ namespace Client.States
             {
                 HandlePackets();
                 view.Center += 0.9f * Math.Min(1.0f, 10 * deltaTime) * (localPlayer.Position - view.Center);
+                view.Size = new Vector2f(game.window.Size.X * zoomFac, game.window.Size.Y * zoomFac);
 
                 //Console.Write($"\rFPS: {Math.Round(1.0/deltaTime)}, Rotation: {Math.Round(playerRotation, 2)}°                        ");
 

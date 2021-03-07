@@ -19,12 +19,14 @@ namespace MapToolkit
         public VectorMap LoadMap(string filepath, Font font)
         {
             VectorMap map = new VectorMap();
-            XDocument xDocument = XDocument.Load(filepath);
+            XDocument document = XDocument.Load(filepath);
+
+            LoadBackgroundColor(document, ref map);
 
             Transform transform = Transform.Identity;
 
             var nodes =
-                from node in xDocument.Descendants()
+                from node in document.Descendants()
                 where node.Name.LocalName == "g"
                 select node;
             nodes = nodes.ToList();
@@ -40,8 +42,11 @@ namespace MapToolkit
             return map;
         }
 
-        private static Color HexStringToColor(string hex)
+        // Formats a string of format "#RRGGBB" or "RRGGBB" into the corresponding RGB color
+        private static Color? HexStringToColor(string hex)
         {
+            if (hex.Length < 6) return null;
+            if (hex[0] == '#') hex = hex.Remove(0, 1);
             string rHex = hex.Substring(0, 2);
             string gHex = hex.Substring(2, 2);
             string bHex = hex.Substring(4, 2);
@@ -103,7 +108,6 @@ namespace MapToolkit
                         break;
                     case "translate":
                         transform.Translate(values[0], values[1]);
-                        Console.WriteLine("Translated by " + values[0] + "," + values[1]);
                         break;
                     case "scale":
                         transform.Scale(values[0], values[1]);
@@ -112,20 +116,16 @@ namespace MapToolkit
                         if(values.Length == 1)
                         {
                             transform.Rotate(values[0]);
-                            Console.WriteLine("Rotated by " + values[0] + "°");
                         }
                         else if(values.Length == 3)
                         {
                             transform.Rotate(values[0], values[1], values[2]);
-                            Console.WriteLine("Rotated by " + values[0] + "° around " + values[1] + "," + values[2]);
                         }
                         break;
                     case "matrix":
                         transform.Combine(new Transform(values[0], values[1], 0, values[2], values[3], 0, values[4], values[5], 1));
                         break;
                 }
-
-                Console.WriteLine(transform.ToString());
             }
 
             return transform;
@@ -185,7 +185,7 @@ namespace MapToolkit
                 int fillColorIndex = style.IndexOf("fill:#");
                 if (fillColorIndex >= 0)
                 {
-                    fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6));
+                    fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6)) ?? Color.Magenta;
                 }
             }
             #endregion
@@ -586,7 +586,7 @@ namespace MapToolkit
                 int fillColorIndex = style.IndexOf("fill:#");
                 if (fillColorIndex >= 0)
                 {
-                    fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6));
+                    fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6)) ?? Color.Magenta;
                 }
             }
             Vertex topLeft      = new Vertex(transform.TransformPoint(new Vector2f(x, y)),                      fillColor);
@@ -599,6 +599,26 @@ namespace MapToolkit
             map.DrawLayer.Append(bottomLeft);
             map.DrawLayer.Append(bottomRight);
             map.DrawLayer.Append(topRight);
+        }
+
+        private void LoadBackgroundColor(XDocument document, ref VectorMap map)
+        {
+            List<XElement> elements = (from element in document.Descendants()
+                                       where element.Name.LocalName == "namedview"
+                                       select element).ToList();
+
+            // Check if a namedview exists
+            if(elements.Count != 0)
+            {
+                XAttribute pageColorAttribute = elements[0].Attribute("pagecolor");
+
+                if(pageColorAttribute != null)
+                {
+                    map.BackgroundColor = HexStringToColor(pageColorAttribute.Value);
+                }
+            }
+
+
         }
     }
 }

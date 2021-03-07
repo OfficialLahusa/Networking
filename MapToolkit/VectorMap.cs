@@ -10,6 +10,7 @@ namespace MapToolkit
         public VertexArray DrawLayer;
         public VertexArray DebugLines;
         public List<Text> DebugText;
+        public Color? BackgroundColor;
         public VectorMap()
         {
             DrawLayer = new VertexArray(PrimitiveType.Triangles);
