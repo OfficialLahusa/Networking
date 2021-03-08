@@ -7,15 +7,16 @@ namespace MapToolkit
 {
     public class VectorMap
     {
-        public VertexArray DrawLayer;
-        public VertexArray DebugLines;
-        public List<Text> DebugText;
+        public VertexArray Triangles;
+        public VertexArray Lines;
+        public List<Text> Text;
         public Color? BackgroundColor;
         public VectorMap()
         {
-            DrawLayer = new VertexArray(PrimitiveType.Triangles);
-            DebugLines = new VertexArray(PrimitiveType.Lines);
-            DebugText = new List<Text>();
+            Triangles = new VertexArray(PrimitiveType.Triangles);
+            Lines = new VertexArray(PrimitiveType.Lines);
+            Text = new List<Text>();
+            BackgroundColor = null;
         }
     }
 }

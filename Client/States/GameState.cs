@@ -319,9 +319,9 @@ namespace Client.States
             // Draw map
             if(map != null)
             {
-                game.window.Draw(map.DrawLayer);
-                game.window.Draw(map.DebugLines);
-                foreach(Text text in map.DebugText)
+                game.window.Draw(map.Triangles);
+                game.window.Draw(map.Lines);
+                foreach(Text text in map.Text)
                 {
                     game.window.Draw(text);
                 }

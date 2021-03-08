@@ -338,3 +338,9 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/Client/res/map/map.svg
+/Client/res/map/template.svg
+/Client/res/map/de_dust2 radar.png
+/Client/res/map/template_normal.svg
+/Client/res/map/template_optimized.svg
+/Client/res/map/test_transform_triangulation.svg

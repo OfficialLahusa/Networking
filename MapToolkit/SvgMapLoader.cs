@@ -36,7 +36,7 @@ namespace MapToolkit
                 select node;
             foreach(var node in nodes)
             {
-                HandleGroup(node, ref map, transform, font);
+                HandleGroup(node, ref map, transform, VertexFlags.Draw, font);
             }
 
             return map;
@@ -131,9 +131,76 @@ namespace MapToolkit
             return transform;
         }
 
-        private void HandleGroup(XElement node, ref VectorMap map, Transform parentTransform, Font font)
+        private void HandleGroup(XElement node, ref VectorMap map, Transform parentTransform, VertexFlags parentFlags, Font font)
         {
             //Console.WriteLine($"Node: {node.Name.LocalName}\n{node}");
+
+            VertexFlags vertexFlags = parentFlags;
+
+            List<XAttribute> labelAttributes = node.Attributes().Where(x => x.Name.LocalName == "label").ToList();
+            if(labelAttributes.Count > 0)
+            {
+                string label = labelAttributes[0].Value;
+                int tagIndex = label.IndexOf("#");
+                if (tagIndex != -1)
+                {
+                    string tagString = label.Substring(tagIndex + 1);
+                    Console.WriteLine("Tags: " + tagString);
+
+                    string[] tags = tagString.Split(',', ' ', ';');
+
+                    foreach(string tag in tags)
+                    {
+                        switch(tag)
+                        {
+                            default:
+                                break;
+                            case "ignore":
+                                return;
+                            case "draw":
+                                vertexFlags |= VertexFlags.Draw;
+                                break;
+                            case "hide":
+                            case "invis":
+                            case "invisible":
+                                vertexFlags &= ~VertexFlags.Draw;
+                                break;
+                            case "collision":
+                                vertexFlags |= VertexFlags.PlayerBlock | VertexFlags.ShotBlock;
+                                break;
+                            case "playercollision":
+                            case "playercol":
+                            case "playerblock":
+                                vertexFlags |= VertexFlags.PlayerBlock;
+                                break;
+                            case "shotcollision":
+                            case "shotcol":
+                            case "shotblock":
+                                vertexFlags |= VertexFlags.ShotBlock;
+                                break;
+                            case "pass":
+                                vertexFlags &= ~(VertexFlags.PlayerBlock | VertexFlags.ShotBlock);
+                                break;
+                            case "playerpass":
+                                vertexFlags &= ~VertexFlags.PlayerBlock;
+                                break;
+                            case "shotpass":
+                                vertexFlags &= ~VertexFlags.ShotBlock;
+                                break;
+                            case "wallbang":
+                                vertexFlags |= VertexFlags.Wallbang;
+                                break;
+                            case "hook":
+                            case "hooks":
+                            case "triggers":
+                            case "info":
+                                vertexFlags |= VertexFlags.Hook;
+                                break;
+                        }
+                    }
+                }
+            }
+
             Vector2f startingPos = new Vector2f(0, 0);
             Transform transform = parentTransform;
             transform.Combine(EvaluateTransform(node));
@@ -150,7 +217,7 @@ namespace MapToolkit
                     default:
                         break;
                     case "g":
-                        HandleGroup(childNode, ref map, transform, font);
+                        HandleGroup(childNode, ref map, transform, vertexFlags, font);
                         break;
                     case "rect":
                         HandleRect(childNode, ref map, transform);
@@ -186,6 +253,27 @@ namespace MapToolkit
                 if (fillColorIndex >= 0)
                 {
                     fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6)) ?? Color.Magenta;
+                }
+
+                int fillOpacityIndex = style.IndexOf("fill-opacity:");
+                if (fillOpacityIndex != -1)
+                {
+                    string opacityString;
+
+                    int startIndex = fillOpacityIndex + "fill-opacity:".Length;
+                    int endIndex = style.IndexOf(";", fillOpacityIndex);
+
+                    if (endIndex != -1)
+                    {
+                        opacityString = style.Substring(startIndex, endIndex - startIndex);
+                    }
+                    else
+                    {
+                        opacityString = style.Substring(startIndex);
+                    }
+
+                    float opacity = float.Parse(opacityString, System.Globalization.NumberStyles.Any, cultureInfo);
+                    fillColor.A = (byte)MathF.Round(255.0f * opacity);
                 }
             }
             #endregion
@@ -233,7 +321,7 @@ namespace MapToolkit
             {
                 foreach(Vertex vertex in vertices)
                 {
-                    map.DrawLayer.Append(vertex);
+                    map.Triangles.Append(vertex);
                 }
             } else
             {
@@ -375,7 +463,7 @@ namespace MapToolkit
                     PolygonTriangulator triangulator = new PolygonTriangulator();
                     foreach(Vertex vertex in triangulator.TriangulatePolygon(vertices))
                     {
-                        map.DrawLayer.Append(vertex);
+                        map.Triangles.Append(vertex);
                     }
                 }
                 // Convex
@@ -383,9 +471,9 @@ namespace MapToolkit
                 {
                     for (int i = 1; i < vertices.Count - 1; i++)
                     {
-                        map.DrawLayer.Append(vertices[0]);
-                        map.DrawLayer.Append(vertices[i]);
-                        map.DrawLayer.Append(vertices[i + 1]);
+                        map.Triangles.Append(vertices[0]);
+                        map.Triangles.Append(vertices[i]);
+                        map.Triangles.Append(vertices[i + 1]);
                     }
                 }
             }
@@ -584,21 +672,41 @@ namespace MapToolkit
             if (style != string.Empty)
             {
                 int fillColorIndex = style.IndexOf("fill:#");
-                if (fillColorIndex >= 0)
+                if (fillColorIndex != -1)
                 {
                     fillColor = HexStringToColor(style.Substring(fillColorIndex + "fill:#".Length, 6)) ?? Color.Magenta;
+                }
+
+                int fillOpacityIndex = style.IndexOf("fill-opacity:");
+                if(fillOpacityIndex != -1)
+                {
+                    string opacityString;
+
+                    int startIndex = fillOpacityIndex + "fill-opacity:".Length;
+                    int endIndex = style.IndexOf(";", fillOpacityIndex);
+
+                    if(endIndex != -1)
+                    {
+                        opacityString = style.Substring(startIndex, endIndex - startIndex);
+                    } else
+                    {
+                        opacityString = style.Substring(startIndex);
+                    }
+
+                    float opacity = float.Parse(opacityString, System.Globalization.NumberStyles.Any, cultureInfo);
+                    fillColor.A = (byte)MathF.Round(255.0f * opacity);
                 }
             }
             Vertex topLeft      = new Vertex(transform.TransformPoint(new Vector2f(x, y)),                      fillColor);
             Vertex topRight     = new Vertex(transform.TransformPoint(new Vector2f(x + width, y)),              fillColor);
             Vertex bottomLeft   = new Vertex(transform.TransformPoint(new Vector2f(x, y + height)),             fillColor);
             Vertex bottomRight  = new Vertex(transform.TransformPoint(new Vector2f(x + width, y + height)),     fillColor);
-            map.DrawLayer.Append(topLeft);
-            map.DrawLayer.Append(topRight);
-            map.DrawLayer.Append(bottomLeft);
-            map.DrawLayer.Append(bottomLeft);
-            map.DrawLayer.Append(bottomRight);
-            map.DrawLayer.Append(topRight);
+            map.Triangles.Append(topLeft);
+            map.Triangles.Append(topRight);
+            map.Triangles.Append(bottomLeft);
+            map.Triangles.Append(bottomLeft);
+            map.Triangles.Append(bottomRight);
+            map.Triangles.Append(topRight);
         }
 
         private void LoadBackgroundColor(XDocument document, ref VectorMap map)
