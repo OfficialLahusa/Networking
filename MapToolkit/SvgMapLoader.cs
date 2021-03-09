@@ -233,7 +233,8 @@ namespace MapToolkit
         {
             //Console.WriteLine(node);
             // Read transform
-            Transform transform = parentTransform * EvaluateTransform(node);
+            Transform transform = parentTransform;
+            transform.Combine(EvaluateTransform(node));
 
             CultureInfo cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
             cultureInfo.NumberFormat.CurrencyDecimalSeparator = ".";
