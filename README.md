@@ -1,16 +1,19 @@
+
 # C# Client-Server Networking
 This project is a multiplayer shooter game developed in **.Net 5.0** C# as a networking learning project. It is based on a previous networking project written in C++, this is intended as it's successor and has an expanded feature set and improved performance.  Due to it's complexity, the project is split up into multiple Visual C# Projects:
 
- - **Client**
-	Visual client for configuring the player, connecting and interacting with the server
- - **Server**
-	 Command line server
- - **StressTestCockpit**
-	 Command line stress test control
- - LahusaPackets (*required library for all of the above*)
-	 Selfmade packet handling library
- - SFML_Engine (*required library for Client)*
-	 2D game engine based on the Simple and Fast Multimedia Library ([SFML](https://www.sfml-dev.org/)), of which I use the .NET binding. It has a game state machine, resource management, input- and event handling aswell as support for overlay states.
+ - **Client**  
+   Visual client for configuring the player, connecting and interacting with the server
+ - **Server**  
+   Command line server
+ - **StressTestCockpit**  
+   Command line stress test control
+ - LahusaPackets (*required library for all of the above*)  
+  Selfmade packet handling library
+ - MapToolkit (*required library for client and server*)  
+   Selfmade SVG Map loading library
+ - SFML_Engine (*required library for Client)*  
+   Selfmade 2D game engine based on the Simple and Fast Multimedia Library ([SFML](https://www.sfml-dev.org/)), of which I use the .NET binding. It has a game state machine, resource management, input- and event handling as well as support for overlay states.
 
 **Note:** All executables have an integrated config loading system. The "config.yaml" file is contained in the executable working directory and will be restored when deleted.
 
