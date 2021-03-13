@@ -7,6 +7,8 @@ namespace MapToolkit
 {
     public class VectorMap
     {
+        public static readonly float UnitPixelScaleFactor = 100.0f;
+        
         public VertexArray Triangles;
         public VertexArray Lines;
         public List<Text> Text;

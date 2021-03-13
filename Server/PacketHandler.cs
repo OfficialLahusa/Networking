@@ -150,8 +150,12 @@ namespace Server
                             server.Send(joinResponsePacket.GetData(), joinResponsePacket.GetSize(), bufferedPacket.endpoint);
                             packetLogger.Log(joinResponsePacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Player_Join_Response);
 
-                            // Add player entity to dictionary
-                            Dynamics.Body playerBody = world.CreateCircle(PlayerEntity.entityRadius + PlayerEntity.entityOutline, 5.0f, new Common.Vector2(position.X, position.Y), Dynamics.BodyType.Dynamic);
+                            // Create player body and add entity to player dictionary
+                            Dynamics.Body playerBody = world.CreateCircle(
+                                (PlayerEntity.entityRadius + PlayerEntity.entityOutline) / MapToolkit.VectorMap.UnitPixelScaleFactor, 5.0f,
+                                new Common.Vector2(position.X / MapToolkit.VectorMap.UnitPixelScaleFactor, position.Y / MapToolkit.VectorMap.UnitPixelScaleFactor),
+                                Dynamics.BodyType.Dynamic);
+
                             players.Add(playerGuid, new PlayerEntity(playerBody, bufferedPacket.endpoint, playerToken, name, playerHue, nametagHue));
                             Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}, PlayerCount: {players.Count}");
                         }
@@ -168,9 +172,7 @@ namespace Server
                         {
                             if (players[movePlayerGuid].token == movePlayerToken)
                             {
-                                //players[movePlayerGuid].position += new Vector2f(dx, dy);
-                                players[movePlayerGuid].body.Position += new Common.Vector2(dx, dy);
-                                //players[movePlayerGuid].body.ApplyLinearImpulse(new Common.Vector2(dx, dy), players[movePlayerGuid].body.Position);
+                                players[movePlayerGuid].body.Position += new Common.Vector2(dx / MapToolkit.VectorMap.UnitPixelScaleFactor, dy / MapToolkit.VectorMap.UnitPixelScaleFactor);
                                 StatusUpdateNeeded = true;
                             }
                             else
@@ -211,6 +213,7 @@ namespace Server
                         {
                             if (players[leavingPlayerGuid].token == leavingPlayerToken)
                             {
+                                world.Remove(players[leavingPlayerGuid].body);
                                 players.Remove(leavingPlayerGuid);
 
                                 Packet playerLeaveNotificationPacket = new Packet();
@@ -239,7 +242,7 @@ namespace Server
                 statusPacket.Append((short)PacketID.Status).Append(players.Count);
                 foreach (var player in players)
                 {
-                    statusPacket.Append(player.Key).Append(player.Value.body.Position.X).Append(player.Value.body.Position.Y).Append(player.Value.body.Rotation);
+                    statusPacket.Append(player.Key).Append(player.Value.body.Position.X * MapToolkit.VectorMap.UnitPixelScaleFactor).Append(player.Value.body.Position.Y * MapToolkit.VectorMap.UnitPixelScaleFactor).Append(player.Value.body.Rotation);
                 }
 
                 foreach (var player in players)
