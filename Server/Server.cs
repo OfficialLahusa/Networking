@@ -7,6 +7,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Dynamics = tainicom.Aether.Physics2D.Dynamics;
+using Common = tainicom.Aether.Physics2D.Common;
+using Collision = tainicom.Aether.Physics2D.Collision;
 
 namespace Server
 {
@@ -17,6 +20,7 @@ namespace Server
         Dictionary<Guid, PlayerEntity> players;
         Stopwatch runtimeTimer;
         Stopwatch lastTickTimer;
+        Dynamics.World world;
 
         public void Run()
         {
@@ -33,6 +37,7 @@ namespace Server
             players = new Dictionary<Guid, PlayerEntity>();
             runtimeTimer = new Stopwatch();
             lastTickTimer = new Stopwatch();
+            world = new Dynamics.World(new Common.Vector2(0, 0));
 
             // Disable error that closes the socket when a client forcibly disconnects
             // For ref: https://stackoverflow.com/questions/38191968/c-sharp-udp-an-existing-connection-was-forcibly-closed-by-the-remote-host
@@ -45,14 +50,17 @@ namespace Server
             while (running)
             {
                 // Receive incoming packets if there are any
-                packetHandler.HandleImmediatePackets(players, runtimeTimer);
+                packetHandler.HandleImmediatePackets(players, world, runtimeTimer);
 
                 // Check if a server tick should occur
                 if (lastTickTimer.Elapsed.TotalSeconds >= tickInterval)
                 {
                     lastTickTimer.Restart();
                     // Handle Tick-Packets
-                    packetHandler.HandleTickPackets(players);
+                    packetHandler.HandleTickPackets(players, world);
+
+                    // Update Physics
+                    world.Step((float)tickInterval);
 
                     // Send status packet to all players
                     packetHandler.SendStatusUpdate(players);

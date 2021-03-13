@@ -8,6 +8,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Dynamics = tainicom.Aether.Physics2D.Dynamics;
+using Common = tainicom.Aether.Physics2D.Common;
+using Collision = tainicom.Aether.Physics2D.Collision;
 
 namespace Server
 {
@@ -29,7 +32,7 @@ namespace Server
             packetLogger.PacketDirectionFilter = PacketDirection.Neutral;
         }
 
-        public void HandleImmediatePackets(Dictionary<Guid, PlayerEntity> players, Stopwatch runtimeTimer)
+        public void HandleImmediatePackets(Dictionary<Guid, PlayerEntity> players, Dynamics.World world, Stopwatch runtimeTimer)
         {
             // Check if incoming packet bytes are in the buffer
             while (server.Available > 0)
@@ -71,7 +74,7 @@ namespace Server
             }
         }
 
-        public void HandleTickPackets(Dictionary<Guid, PlayerEntity> players)
+        public void HandleTickPackets(Dictionary<Guid, PlayerEntity> players, Dynamics.World world)
         {
             while (packetBuffer.Count > 0)
             {
@@ -131,7 +134,7 @@ namespace Server
                             joinResponsePacket.Append(players.Count);
                             foreach (var player in players)
                             {
-                                joinResponsePacket.Append(player.Key).Append(player.Value.name).Append(player.Value.playerHue).Append(player.Value.nametagHue).Append(player.Value.position.X).Append(player.Value.position.Y).Append(player.Value.rotation);
+                                joinResponsePacket.Append(player.Key).Append(player.Value.name).Append(player.Value.playerHue).Append(player.Value.nametagHue).Append(player.Value.body.Position.X).Append(player.Value.body.Position.Y).Append(player.Value.body.Rotation);
                             }
 
                             // Send join notification packet to every player
@@ -148,7 +151,8 @@ namespace Server
                             packetLogger.Log(joinResponsePacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Player_Join_Response);
 
                             // Add player entity to dictionary
-                            players.Add(playerGuid, new PlayerEntity(bufferedPacket.endpoint, playerToken, name, position, null, playerHue, nametagHue));
+                            Dynamics.Body playerBody = world.CreateCircle(PlayerEntity.entityRadius + PlayerEntity.entityOutline, 5.0f, new Common.Vector2(position.X, position.Y), Dynamics.BodyType.Dynamic);
+                            players.Add(playerGuid, new PlayerEntity(playerBody, bufferedPacket.endpoint, playerToken, name, playerHue, nametagHue));
                             Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}, PlayerCount: {players.Count}");
                         }
                         break;
@@ -164,7 +168,9 @@ namespace Server
                         {
                             if (players[movePlayerGuid].token == movePlayerToken)
                             {
-                                players[movePlayerGuid].position += new Vector2f(dx, dy);
+                                //players[movePlayerGuid].position += new Vector2f(dx, dy);
+                                players[movePlayerGuid].body.Position += new Common.Vector2(dx, dy);
+                                //players[movePlayerGuid].body.ApplyLinearImpulse(new Common.Vector2(dx, dy), players[movePlayerGuid].body.Position);
                                 StatusUpdateNeeded = true;
                             }
                             else
@@ -189,7 +195,7 @@ namespace Server
                         {
                             if (players[rotatePlayerGuid].token == rotatePlayerToken)
                             {
-                                players[rotatePlayerGuid].rotation = rot;
+                                players[rotatePlayerGuid].body.Rotation = rot;
                                 StatusUpdateNeeded = true;
                             }
                         }
@@ -233,7 +239,7 @@ namespace Server
                 statusPacket.Append((short)PacketID.Status).Append(players.Count);
                 foreach (var player in players)
                 {
-                    statusPacket.Append(player.Key).Append(player.Value.position.X).Append(player.Value.position.Y).Append(player.Value.rotation);
+                    statusPacket.Append(player.Key).Append(player.Value.body.Position.X).Append(player.Value.body.Position.Y).Append(player.Value.body.Rotation);
                 }
 
                 foreach (var player in players)

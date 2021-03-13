@@ -11,7 +11,8 @@ namespace MapToolkit
         Draw = 1,
         PlayerBlock = 1 << 1,
         ShotBlock = 1 << 2,
-        Wallbang = 1 << 3,
-        Hook = 1 << 4
+        Hook = 1 << 3,
+        Wallbang = 1 << 4,
+        Destructible = 1 << 5
     }
 }
