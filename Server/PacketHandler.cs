@@ -157,8 +157,6 @@ namespace Server
                                 new Common.Vector2(position.X / MapToolkit.VectorMap.UnitPixelScaleFactor, position.Y / MapToolkit.VectorMap.UnitPixelScaleFactor),
                                 Dynamics.BodyType.Dynamic);
                             playerBody.LinearDamping = 1.5f;
-                            //playerBody.OnCollision += PlayerBody_OnCollision;
-                            //playerBody.OnSeparation += PlayerBody_OnSeparation;
 
                             players.Add(playerGuid, new PlayerEntity(playerBody, bufferedPacket.endpoint, playerToken, name, playerHue, nametagHue));
                             Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}, PlayerCount: {players.Count}");
@@ -236,17 +234,6 @@ namespace Server
                         break;
                 }
             }
-        }
-
-        private void PlayerBody_OnSeparation(Dynamics.Fixture sender, Dynamics.Fixture other, Dynamics.Contacts.Contact contact)
-        {
-            Console.WriteLine("Separation");
-        }
-
-        private bool PlayerBody_OnCollision(Dynamics.Fixture sender, Dynamics.Fixture other, Dynamics.Contacts.Contact contact)
-        {
-            Console.WriteLine("Collision");
-            return true;
         }
 
         public void SendStatusUpdate(Dictionary<Guid, PlayerEntity> players)
