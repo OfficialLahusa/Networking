@@ -12,7 +12,7 @@ This project is a multiplayer shooter game developed in **.Net 5.0** C# as a net
   Selfmade packet handling library
  - MapToolkit (*required library for client and server*)  
    Selfmade SVG Map loading library
- - SFML_Engine (*required library for Client)*  
+ - SFML_Engine (*required library for client)*  
    Selfmade 2D game engine based on the Simple and Fast Multimedia Library ([SFML](https://www.sfml-dev.org/)), of which I use the .NET binding. It has a game state machine, resource management, input- and event handling as well as support for overlay states.
 
 **Note:** All executables have an integrated config loading system. The "config.yaml" file is contained in the executable working directory and will be restored when deleted.
