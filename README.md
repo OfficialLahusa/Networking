@@ -21,6 +21,7 @@ This project is a multiplayer shooter game developed in **.Net 5.0** C# as a net
 Download the code from GitHub and install the following dependencies:
 ### NuGet Dependencies:
  - [**SFML.Net**](https://www.nuget.org/packages/SFML.Net/2.5.0?_src=template) v2.5.0
+ - [**Aether.Physics2D**](https://www.nuget.org/packages/Aether.Physics2D/1.5.0?_src=template) v1.5.0
  - [**YamlDotNet**](https://www.nuget.org/packages/YamlDotNet/9.1.4?_src=template) v9.1.4
  - [**System.Runtime**](https://www.nuget.org/packages/System.Runtime/4.3.1?_src=template) v4.3.1
 
