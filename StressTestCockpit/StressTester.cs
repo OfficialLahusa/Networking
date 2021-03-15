@@ -109,7 +109,7 @@ namespace StressTestCockpit
                         {
                             float rotation = /*(float)((random.NextDouble() * 2.0f) - 1.0f) **/ entity.RotationRate * tickInterval;
                             entity.Rotation += rotation;
-                            Vector2f moveVector = entity.MovementSpeed * new Vector2f(MathF.Cos((entity.Rotation + 180.0f) / 180.0f * MathF.PI), MathF.Sin((entity.Rotation + 180.0f) / 180.0f * MathF.PI)) * tickInterval;
+                            Vector2f moveVector = entity.MovementSpeed * new Vector2f(MathF.Cos((entity.Rotation + 180.0f) / 180.0f * MathF.PI), MathF.Sin((entity.Rotation + 180.0f) / 180.0f * MathF.PI)); //* tickInterval;
                             entity.Position += moveVector;
 
                             Packet playerRotatePacket = new Packet();

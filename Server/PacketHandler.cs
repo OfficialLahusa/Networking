@@ -151,10 +151,14 @@ namespace Server
                             packetLogger.Log(joinResponsePacket, bufferedPacket.endpoint, PacketDirection.Sent, PacketID.Player_Join_Response);
 
                             // Create player body and add entity to player dictionary
+                            float playerRadius = (PlayerEntity.entityRadius + PlayerEntity.entityOutline) / MapToolkit.VectorMap.UnitPixelScaleFactor;
                             Dynamics.Body playerBody = world.CreateCircle(
-                                (PlayerEntity.entityRadius + PlayerEntity.entityOutline) / MapToolkit.VectorMap.UnitPixelScaleFactor, 5.0f,
+                                playerRadius, 2 * MathF.PI * playerRadius * playerRadius,
                                 new Common.Vector2(position.X / MapToolkit.VectorMap.UnitPixelScaleFactor, position.Y / MapToolkit.VectorMap.UnitPixelScaleFactor),
                                 Dynamics.BodyType.Dynamic);
+                            playerBody.LinearDamping = 1.5f;
+                            //playerBody.OnCollision += PlayerBody_OnCollision;
+                            //playerBody.OnSeparation += PlayerBody_OnSeparation;
 
                             players.Add(playerGuid, new PlayerEntity(playerBody, bufferedPacket.endpoint, playerToken, name, playerHue, nametagHue));
                             Console.WriteLine($"Player {playerGuid} has been assigned the token {playerToken}, PlayerCount: {players.Count}");
@@ -172,7 +176,7 @@ namespace Server
                         {
                             if (players[movePlayerGuid].token == movePlayerToken)
                             {
-                                players[movePlayerGuid].body.Position += new Common.Vector2(dx / MapToolkit.VectorMap.UnitPixelScaleFactor, dy / MapToolkit.VectorMap.UnitPixelScaleFactor);
+                                players[movePlayerGuid].body.LinearVelocity = new Common.Vector2(dx / MapToolkit.VectorMap.UnitPixelScaleFactor, dy / MapToolkit.VectorMap.UnitPixelScaleFactor);
                                 StatusUpdateNeeded = true;
                             }
                             else
@@ -232,6 +236,17 @@ namespace Server
                         break;
                 }
             }
+        }
+
+        private void PlayerBody_OnSeparation(Dynamics.Fixture sender, Dynamics.Fixture other, Dynamics.Contacts.Contact contact)
+        {
+            Console.WriteLine("Separation");
+        }
+
+        private bool PlayerBody_OnCollision(Dynamics.Fixture sender, Dynamics.Fixture other, Dynamics.Contacts.Contact contact)
+        {
+            Console.WriteLine("Collision");
+            return true;
         }
 
         public void SendStatusUpdate(Dictionary<Guid, PlayerEntity> players)

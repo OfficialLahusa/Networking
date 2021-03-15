@@ -29,6 +29,7 @@ namespace Client.States
         IPEndPoint server;
         PacketLogger<Server.PacketID> packetLogger;
         long serverTimestampOffset = 0;
+        bool hasSentMovementStopPacket = false;
 
         // Auth
         Guid localPlayerGuid = Guid.Empty;
@@ -373,20 +374,26 @@ namespace Client.States
                 if(length != 0)
                 {
                     moveVector /= length;
+                    hasSentMovementStopPacket = false;
                 }
-                moveVector *= deltaTime;
+                //moveVector *= deltaTime;
 
                 // Only send packets if the client is connected to a server
                 if(client.Client != null)
                 {
                     if(client.Client.Connected)
                     {
-                        if (moveVector.X != 0 || moveVector.Y != 0)
+                        if (moveVector.X != 0 || moveVector.Y != 0 || !hasSentMovementStopPacket)
                         {
                             Packet movePacket = new Packet();
                             movePacket.Append((short)Server.PacketID.Player_Move).Append(localPlayerGuid).Append(localPlayerToken).Append(300 * moveVector.X).Append(300 * moveVector.Y);
                             client.Send(movePacket.GetData(), movePacket.GetSize());
                             packetLogger.Log(movePacket, server, PacketDirection.Sent, Server.PacketID.Player_Move);
+
+                            if(moveVector.X == 0 && moveVector.Y == 0)
+                            {
+                                hasSentMovementStopPacket = true;
+                            }
                         }
                         //localPlayer.Move(moveVector);
 
