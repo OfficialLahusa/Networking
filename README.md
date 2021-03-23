@@ -1,6 +1,6 @@
 
 # C# Client-Server Networking
-This project is a multiplayer shooter game developed in **.Net 5.0** C# as a networking learning project. It is based on a previous networking project written in C++, this is intended as it's successor and has an expanded feature set and improved performance.  Due to it's complexity, the project is split up into multiple Visual C# Projects:
+This project is a multiplayer shooter game developed in **.Net 5.0** C# as a networking learning project. It is based on a previous networking project written in C++, this is intended as its successor and has an expanded feature set and improved performance.  Due to its complexity, the project is split up into multiple Visual C# Projects:
 
  - **Client**  
    Visual client for configuring the player, connecting and interacting with the server
